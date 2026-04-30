@@ -4,35 +4,71 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Tesla Model Y · 能源儀表板</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Noto+Sans+TC:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
-:root{--bg:#080808;--bg2:#111;--bg3:#1a1a1a;--line:rgba(255,255,255,.08);--line2:rgba(255,255,255,.15);--tx:#f0ede8;--tx2:#888;--tx3:#555;--red:#c8102e;--red2:#e31937;--gold:#b8975a}
+/* ===== THEME VARIABLES ===== */
+:root{
+  --bg:#080808;--bg2:#111;--bg3:#1a1a1a;
+  --line:rgba(255,255,255,.08);--line2:rgba(255,255,255,.15);
+  --tx:#f0ede8;--tx2:#888;--tx3:#555;
+  --card:rgba(255,255,255,.03);
+  --red:#c8102e;--red2:#e31937;
+  --chart-grid:rgba(255,255,255,.04);
+  --chart-tick:rgba(255,255,255,.5);
+  --shadow:none;
+  --toggle-bg:#1a1a1a;
+  --toggle-border:rgba(255,255,255,.15);
+}
+[data-theme="light"]{
+  --bg:#f4f2ef;--bg2:#e8e6e2;--bg3:#dedad4;
+  --line:rgba(0,0,0,.08);--line2:rgba(0,0,0,.15);
+  --tx:#1a1a1a;--tx2:#555;--tx3:#999;
+  --card:rgba(0,0,0,.02);
+  --chart-grid:rgba(0,0,0,.05);
+  --chart-tick:rgba(0,0,0,.5);
+  --shadow:0 1px 3px rgba(0,0,0,.1);
+  --toggle-bg:#e0ddd8;
+  --toggle-border:rgba(0,0,0,.15);
+}
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
-body{font-family:'Noto Sans TC',sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;overflow-x:hidden}
+body{font-family:'Noto Sans TC',sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;overflow-x:hidden;transition:background .4s,color .4s}
+
+/* ===== THEME TOGGLE ===== */
+.theme-toggle{display:flex;align-items:center;gap:8px;cursor:pointer;padding:6px 14px;border:1px solid var(--toggle-border);background:var(--toggle-bg);border-radius:2px;transition:all .3s}
+.theme-toggle:hover{border-color:var(--tx2)}
+.toggle-icon{font-size:14px;transition:transform .4s}
+.toggle-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--tx2)}
+
+/* ===== LOADING ===== */
 #ls{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;z-index:9999;transition:opacity .6s}
 #ls.fade{opacity:0;pointer-events:none}
 .ls-t{font-family:'Cormorant Garamond',serif;font-size:13px;font-weight:300;letter-spacing:4px;text-transform:uppercase;color:var(--tx2)}
 .ls-bar{width:160px;height:1px;background:var(--line2);position:relative;overflow:hidden}
 .ls-bar::after{content:'';position:absolute;left:-100%;top:0;width:100%;height:100%;background:var(--red2);animation:lbar 1.8s ease infinite}
 @keyframes lbar{0%{left:-100%}100%{left:100%}}
+
+/* ===== ERROR ===== */
 #es{display:none;position:fixed;inset:0;background:var(--bg);flex-direction:column;align-items:center;justify-content:center;gap:12px;z-index:9998}
 #es.show{display:flex}
 .e-t{font-family:'Cormorant Garamond',serif;font-size:24px;letter-spacing:2px;color:var(--red2)}
 .e-m{font-size:12px;color:var(--tx2);max-width:380px;text-align:center;line-height:2}
+
+/* ===== NAV ===== */
 nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:0 40px;height:64px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid transparent;transition:all .4s}
-nav.scrolled{background:rgba(8,8,8,.96);border-bottom-color:var(--line);backdrop-filter:blur(12px)}
+nav.scrolled{background:var(--bg);border-bottom-color:var(--line);backdrop-filter:blur(12px);box-shadow:var(--shadow)}
 .nav-logo{display:flex;align-items:center;gap:12px}
 .nav-t{font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:400;letter-spacing:2px}
 .nav-sub{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--tx2);border-left:1px solid var(--line2);padding-left:12px;margin-left:4px}
-.nav-r{display:flex;align-items:center;gap:24px}
-.live-dot{width:6px;height:6px;border-radius:50%;background:#4caf7d;animation:pulse 2s infinite}
+.nav-r{display:flex;align-items:center;gap:12px}
+.live-dot{width:6px;height:6px;border-radius:50%;background:#4caf7d;animation:pulse 2s infinite;flex-shrink:0}
 @keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(76,175,125,.4)}50%{opacity:.6;box-shadow:0 0 0 6px rgba(76,175,125,0)}}
 .nav-live{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--tx2);display:flex;align-items:center;gap:8px}
-.rbtn{font-size:11px;letter-spacing:2px;text-transform:uppercase;background:none;border:1px solid var(--line2);color:var(--tx2);padding:7px 18px;cursor:pointer;transition:all .3s;font-family:'Noto Sans TC',sans-serif}
+.rbtn{font-size:10px;letter-spacing:2px;text-transform:uppercase;background:none;border:1px solid var(--line2);color:var(--tx2);padding:7px 16px;cursor:pointer;transition:all .3s;font-family:'Noto Sans TC',sans-serif}
 .rbtn:hover{border-color:var(--tx);color:var(--tx)}
+
+/* ===== HERO ===== */
 .hero{height:100svh;min-height:600px;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;border-bottom:1px solid var(--line);text-align:center;padding:80px 24px 40px}
 .hero-ey{font-size:10px;letter-spacing:5px;text-transform:uppercase;color:var(--tx3);margin-bottom:32px;animation:fadeUp .8s ease .2s both}
 .hero-title{font-family:'Cormorant Garamond',serif;font-size:clamp(52px,8vw,96px);font-weight:300;line-height:1;letter-spacing:-1px;margin-bottom:16px;animation:fadeUp .8s ease .35s both}
@@ -46,30 +82,40 @@ nav.scrolled{background:rgba(8,8,8,.96);border-bottom-color:var(--line);backdrop
 .scroll-hint{position:absolute;bottom:32px;left:50%;transform:translateX(-50%);font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--tx3);display:flex;flex-direction:column;align-items:center;gap:8px;animation:fadeUp .8s ease .8s both}
 .scroll-line{width:1px;height:40px;background:linear-gradient(to bottom,var(--tx3),transparent);animation:scrollDown 1.5s ease infinite}
 @keyframes scrollDown{0%{transform:scaleY(0);transform-origin:top}50%{transform:scaleY(1);transform-origin:top}51%{transform:scaleY(1);transform-origin:bottom}100%{transform:scaleY(0);transform-origin:bottom}}
-.tabs{display:flex;border-bottom:1px solid var(--line);position:sticky;top:64px;background:rgba(8,8,8,.96);backdrop-filter:blur(12px);z-index:50;padding:0 40px}
+
+/* ===== TABS ===== */
+.tabs{display:flex;border-bottom:1px solid var(--line);position:sticky;top:64px;background:var(--bg);z-index:50;padding:0 40px;transition:background .4s;backdrop-filter:blur(12px)}
 .tab{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--tx3);padding:18px 20px;cursor:pointer;border-bottom:2px solid transparent;background:none;border-top:none;border-left:none;border-right:none;font-family:'Noto Sans TC',sans-serif;transition:all .3s;margin-bottom:-1px}
 .tab:hover{color:var(--tx2)}
 .tab.on{color:var(--tx);border-bottom-color:var(--red2)}
 .pane{display:none}.pane.on{display:block}
+
+/* ===== SECTIONS ===== */
 .section{padding:80px 40px;border-bottom:1px solid var(--line);max-width:1400px;margin:0 auto}
 .sec-head{display:flex;align-items:baseline;gap:20px;margin-bottom:48px}
 .sec-num{font-family:'DM Mono',monospace;font-size:11px;color:var(--tx3)}
 .sec-title{font-family:'Cormorant Garamond',serif;font-size:clamp(28px,4vw,42px);font-weight:300;letter-spacing:1px}
 .sec-line{flex:1;height:1px;background:var(--line);margin-left:20px}
-.last-banner{background:var(--bg2);border:1px solid var(--line);padding:32px 40px;display:flex;flex-wrap:wrap;align-items:center;gap:0;margin-bottom:48px;position:relative;overflow:hidden}
+
+/* ===== LAST BANNER ===== */
+.last-banner{background:var(--bg2);border:1px solid var(--line);padding:32px 40px;display:flex;flex-wrap:wrap;align-items:center;gap:0;margin-bottom:48px;position:relative;overflow:hidden;transition:background .4s}
 .last-banner::before{content:'LAST CHARGE';position:absolute;top:16px;right:24px;font-size:10px;letter-spacing:4px;color:var(--tx3)}
 .lb-item{padding:0 32px;text-align:center;flex:1;min-width:120px}
 .lb-item:first-child{padding-left:0;text-align:left}
 .lb-v{font-family:'DM Mono',monospace;font-size:22px;font-weight:400;color:var(--tx)}
 .lb-l{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--tx3);margin-top:6px}
 .lb-div{width:1px;height:48px;background:var(--line2);flex-shrink:0}
+
+/* ===== CHARTS ===== */
 .chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);margin-bottom:1px}
-.chart-box{background:var(--bg);padding:32px;transition:background .3s}
+.chart-box{background:var(--bg);padding:32px;transition:background .4s}
 .chart-box:hover{background:var(--bg2)}
 .chart-box.full{grid-column:1/-1}
 .cb-title{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--tx3);margin-bottom:24px}
 .chart-wrap{position:relative;height:220px}
 .chart-wrap.tall{height:280px}
+
+/* ===== BAR LIST ===== */
 .bar-row{display:flex;align-items:center;gap:12px;margin-bottom:14px;opacity:0;transform:translateX(-10px);transition:all .5s}
 .bar-row.visible{opacity:1;transform:none}
 .bn{font-size:11px;color:var(--tx2);width:110px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -77,6 +123,8 @@ nav.scrolled{background:rgba(8,8,8,.96);border-bottom-color:var(--line);backdrop
 .bf{position:absolute;left:0;top:0;height:100%;background:var(--red2);transform-origin:left;transform:scaleX(0);transition:transform .8s cubic-bezier(.4,0,.2,1)}
 .bar-row.visible .bf{transform:scaleX(1)}
 .bv{font-family:'DM Mono',monospace;font-size:11px;color:var(--tx2);width:60px;text-align:right}
+
+/* ===== TABLE ===== */
 .dt-wrap{overflow-x:auto}
 table.dt{width:100%;border-collapse:collapse;font-size:12px}
 table.dt th{padding:10px 12px;text-align:left;color:var(--tx3);border-bottom:1px solid var(--line);font-weight:400;font-size:10px;letter-spacing:2px;text-transform:uppercase}
@@ -86,51 +134,67 @@ table.dt tr:last-child td{border-bottom:none}
 .badge{display:inline-block;padding:2px 8px;font-size:10px;letter-spacing:1px;text-transform:uppercase;border:1px solid}
 .bs{border-color:var(--red);color:var(--red)}
 .bw{border-color:#3a6b4d;color:#4caf7d}
+
+/* ===== METRICS ===== */
 .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1px;background:var(--line);margin-bottom:1px}
-.metric{background:var(--bg);padding:28px 24px;transition:background .3s;cursor:default}
+.metric{background:var(--bg);padding:28px 24px;transition:background .4s;cursor:default}
 .metric:hover{background:var(--bg2)}
 .m-l{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--tx3);margin-bottom:12px}
 .m-v{font-family:'DM Mono',monospace;font-size:26px;font-weight:400;line-height:1;color:var(--tx)}
 .m-u{font-size:12px;color:var(--tx2);margin-left:2px}
 .m-s{font-size:11px;color:var(--tx3);margin-top:8px}
+
+/* ===== BRAND TABLE ===== */
 .brand-row{display:grid;grid-template-columns:1fr auto auto auto auto;gap:16px;align-items:center;padding:16px 0;border-bottom:1px solid var(--line)}
 .brand-row:last-child{border-bottom:none}
 .br-name{font-size:13px;font-weight:500;color:var(--tx)}
 .br-v{font-family:'DM Mono',monospace;font-size:13px;color:var(--tx2);text-align:right}
 .br-rate{font-family:'DM Mono',monospace;font-size:13px;font-weight:500;text-align:right}
 .br-head{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--tx3);text-align:right}
+
+/* ===== FOOTER ===== */
 footer{padding:40px;border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px}
 .ft-logo{font-family:'Cormorant Garamond',serif;font-size:14px;letter-spacing:2px;color:var(--tx2)}
 #lu{font-size:10px;letter-spacing:1px;color:var(--tx3)}
+
+/* ===== ANIMATIONS ===== */
 @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
 .reveal{opacity:0;transform:translateY(24px);transition:opacity .7s,transform .7s}
 .reveal.visible{opacity:1;transform:none}
+
+/* ===== MOBILE ===== */
 @media(max-width:768px){
-  nav{padding:0 20px}.nav-sub{display:none}
+  nav{padding:0 16px}.nav-sub,.nav-live{display:none}
+  .nav-r{gap:8px}
   .hero-grid{grid-template-columns:repeat(2,1fr)}.hm-v{font-size:22px}
   .section{padding:60px 20px}.sec-head{margin-bottom:32px}
-  .tabs{padding:0 20px;overflow-x:auto}.tab{padding:16px 14px;white-space:nowrap}
+  .tabs{padding:0 16px;overflow-x:auto}.tab{padding:16px 12px;white-space:nowrap;font-size:9px}
   .chart-grid{grid-template-columns:1fr}.chart-box.full{grid-column:1}
   .metrics{grid-template-columns:repeat(2,1fr)}
   .last-banner{padding:24px 20px;flex-direction:column;align-items:flex-start;gap:20px}
   .lb-item{padding:0;text-align:left}.lb-div{width:100%;height:1px}
   .brand-row{grid-template-columns:1fr auto auto}.br-cnt,.br-kwh{display:none}
   footer{padding:24px 20px;flex-direction:column;align-items:flex-start}
+  .rbtn{padding:6px 10px;font-size:9px}
+  .toggle-label{display:none}
 }
-@media(max-width:480px){.hm{padding:20px 12px}.hm-v{font-size:20px}.m-v{font-size:22px}}
+@media(max-width:480px){.hm{padding:20px 10px}.hm-v{font-size:20px}.m-v{font-size:22px}}
 </style>
 </head>
 <body>
+
 <div id="ls">
   <svg width="48" height="48" viewBox="0 0 342 512" fill="none"><path d="M0 0l171 512L342 0H216l-45 196L126 0H0zm171 15.5l45 175.5H126L171 15.5z" fill="#c8102e"/></svg>
   <div class="ls-t">Loading Dashboard</div>
   <div class="ls-bar"></div>
 </div>
+
 <div id="es">
   <div class="e-t">Connection Error</div>
   <div class="e-m" id="em"></div>
   <button class="rbtn" onclick="location.reload()" style="margin-top:16px">Retry</button>
 </div>
+
 <nav id="nav">
   <div class="nav-logo">
     <svg width="26" height="26" viewBox="0 0 342 512" fill="none"><path d="M0 0l171 512L342 0H216l-45 196L126 0H0zm171 15.5l45 175.5H126L171 15.5z" fill="#c8102e"/></svg>
@@ -139,9 +203,15 @@ footer{padding:40px;border-top:1px solid var(--line);display:flex;align-items:ce
   </div>
   <div class="nav-r">
     <div class="nav-live"><div class="live-dot"></div>Live Sync</div>
+    <!-- THEME TOGGLE -->
+    <div class="theme-toggle" onclick="toggleTheme()" id="themeBtn" title="切換主題">
+      <span class="toggle-icon" id="themeIcon">☀️</span>
+      <span class="toggle-label" id="themeLabel">Light</span>
+    </div>
     <button class="rbtn" onclick="loadData()">↻ Refresh</button>
   </div>
 </nav>
+
 <div class="hero">
   <div class="hero-ey">Tesla Model Y RWD · Energy Dashboard</div>
   <h1 class="hero-title">能源<span>數據</span><br>全覽</h1>
@@ -156,12 +226,15 @@ footer{padding:40px;border-top:1px solid var(--line);display:flex;align-items:ce
   </div>
   <div class="scroll-hint"><div class="scroll-line"></div><span>Scroll</span></div>
 </div>
+
 <div class="tabs">
   <button class="tab on" onclick="sw('ov',this)">Overview</button>
   <button class="tab" onclick="sw('ch',this)">Charging</button>
   <button class="tab" onclick="sw('en',this)">Efficiency</button>
   <button class="tab" onclick="sw('co',this)">Cost</button>
 </div>
+
+<!-- OVERVIEW -->
 <div class="pane on" id="pov">
   <div class="section">
     <div class="sec-head reveal"><span class="sec-num">01</span><h2 class="sec-title">最近一次充電</h2><div class="sec-line"></div></div>
@@ -172,6 +245,8 @@ footer{padding:40px;border-top:1px solid var(--line);display:flex;align-items:ce
     </div>
   </div>
 </div>
+
+<!-- CHARGING -->
 <div class="pane" id="pch">
   <div class="section">
     <div class="sec-head reveal"><span class="sec-num">02</span><h2 class="sec-title">充電站分析</h2><div class="sec-line"></div></div>
@@ -185,6 +260,8 @@ footer{padding:40px;border-top:1px solid var(--line);display:flex;align-items:ce
     </div>
   </div>
 </div>
+
+<!-- EFFICIENCY -->
 <div class="pane" id="pen">
   <div class="section">
     <div class="sec-head reveal"><span class="sec-num">03</span><h2 class="sec-title">能耗分析</h2><div class="sec-line"></div></div>
@@ -195,6 +272,8 @@ footer{padding:40px;border-top:1px solid var(--line);display:flex;align-items:ce
     </div>
   </div>
 </div>
+
+<!-- COST -->
 <div class="pane" id="pco">
   <div class="section">
     <div class="sec-head reveal"><span class="sec-num">04</span><h2 class="sec-title">費用分析</h2><div class="sec-line"></div></div>
@@ -205,22 +284,53 @@ footer{padding:40px;border-top:1px solid var(--line);display:flex;align-items:ce
     </div>
   </div>
 </div>
+
 <footer>
   <div class="ft-logo">Tesla Model Y · Energy Dashboard</div>
   <div id="lu"></div>
 </footer>
+
 <script>
 const SID='1mR1-8reYqKFcKdVmdeX_fd9_VJNYMyyjzq15_YdL6LM';
 let CH={};
+let isDark=true;
+
+// ===== THEME =====
+function toggleTheme(){
+  isDark=!isDark;
+  document.documentElement.setAttribute('data-theme',isDark?'':'light');
+  document.getElementById('themeIcon').textContent=isDark?'☀️':'🌙';
+  document.getElementById('themeLabel').textContent=isDark?'Light':'Dark';
+  localStorage.setItem('theme',isDark?'dark':'light');
+  // Rebuild charts with new colors
+  rebuildCharts();
+}
+
+function initTheme(){
+  const saved=localStorage.getItem('theme');
+  if(saved==='light'){
+    isDark=false;
+    document.documentElement.setAttribute('data-theme','light');
+    document.getElementById('themeIcon').textContent='🌙';
+    document.getElementById('themeLabel').textContent='Dark';
+  }
+}
+
+// ===== NAV SCROLL =====
 window.addEventListener('scroll',()=>document.getElementById('nav').classList.toggle('scrolled',scrollY>10));
+
+// ===== INTERSECTION OBSERVER =====
 const obs=new IntersectionObserver(e=>e.forEach(x=>{if(x.isIntersecting)x.target.classList.add('visible')}),{threshold:.1});
 function observeAll(){document.querySelectorAll('.reveal,.bar-row').forEach(el=>obs.observe(el))}
+
 function sw(id,btn){
   document.querySelectorAll('.pane').forEach(p=>p.classList.remove('on'));
   document.querySelectorAll('.tab').forEach(b=>b.classList.remove('on'));
   document.getElementById('p'+id).classList.add('on');btn.classList.add('on');
   setTimeout(observeAll,50);
 }
+
+// ===== UTILITIES =====
 function dc(id){if(CH[id]){CH[id].destroy();delete CH[id]}}
 function n(v){return typeof v==='number'?v:parseFloat((v||'').toString().replace(/[^0-9.\-]/g,''))||0}
 function fmt(v,d=0){return n(v).toLocaleString('zh-TW',{minimumFractionDigits:d,maximumFractionDigits:d})}
@@ -232,8 +342,19 @@ function fdate(v){
   }
   return String(v).substring(0,10);
 }
-const cd={color:'rgba(255,255,255,.5)',gridColor:'rgba(255,255,255,.04)',font:{family:"'DM Mono',monospace",size:10}};
 
+// Chart colors based on theme
+function cd(){
+  const light=!isDark;
+  return{
+    color: light?'rgba(0,0,0,.5)':'rgba(255,255,255,.5)',
+    gridColor: light?'rgba(0,0,0,.06)':'rgba(255,255,255,.04)',
+    font:{family:"'DM Mono',monospace",size:10},
+    legendColor: light?'rgba(0,0,0,.5)':'rgba(255,255,255,.5)',
+  };
+}
+
+// ===== FETCH SHEETS =====
 async function gsheet(sheet){
   const url=`https://docs.google.com/spreadsheets/d/${SID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheet)}&headers=0`;
   const res=await fetch(url);
@@ -246,54 +367,151 @@ async function gsheet(sheet){
   return(j.table.rows||[]).map(r=>(r.c||[]).map(c=>c?c.v:null));
 }
 
+// Stored data for chart rebuild
+let _data={};
+
+function rebuildCharts(){
+  if(!_data.charges)return;
+  buildCharts(_data);
+}
+
+function buildCharts(data){
+  const {charges,monthly,sumRow}=data;
+  const c=cd();
+
+  // Donut — 從充電記錄直接算（最準確）
+  let superKwh=0,slowKwh=0;
+  charges.forEach(r=>{
+    const kwh=n(r[12]);
+    if(r[5]==='超充')superKwh+=kwh;
+    else slowKwh+=kwh;
+  });
+
+  dc('tc');CH['tc']=new Chart(document.getElementById('tc'),{type:'doughnut',data:{
+    labels:[`超充 ${fmt(superKwh,0)}度`,`慢充 ${fmt(slowKwh,0)}度`],
+    datasets:[{data:[superKwh,slowKwh],
+      backgroundColor:['#c8102e', isDark?'rgba(255,255,255,.2)':'rgba(0,0,0,.15)'],
+      borderWidth:0,
+      hoverBackgroundColor:['#e31937', isDark?'rgba(255,255,255,.35)':'rgba(0,0,0,.25)']
+    }]
+  },options:{responsive:true,maintainAspectRatio:false,plugins:{
+    legend:{position:'right',labels:{color:c.legendColor,font:c.font,padding:16,boxWidth:10,boxHeight:10}},
+    tooltip:{callbacks:{label:cx=>{
+      const total=superKwh+slowKwh;
+      return ` ${fmt(cx.raw,1)} 度 (${Math.round(cx.raw/total*100)}%)`;
+    }}}
+  },cutout:'68%'}});
+
+  // Annual bar
+  const yrC={};charges.forEach(r=>{const y=String(n(r[2]));if(y&&y!=='0')yrC[y]=(yrC[y]||0)+n(r[20])});
+  const yrKeys=Object.keys(yrC);
+  dc('yc');CH['yc']=new Chart(document.getElementById('yc'),{type:'bar',data:{
+    labels:yrKeys,
+    datasets:[{data:Object.values(yrC),
+      backgroundColor:yrKeys.map((_,i,a)=>i===a.length-1?'#c8102e':isDark?'rgba(255,255,255,.15)':'rgba(0,0,0,.15)'),
+      borderRadius:0,hoverBackgroundColor:'#e31937'
+    }]
+  },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{
+    x:{ticks:{color:c.color,font:c.font},grid:{display:false}},
+    y:{ticks:{color:c.color,font:c.font,callback:v=>fmt(v)},grid:{color:c.gridColor},border:{display:false}}
+  }}});
+
+  // Monthly labels
+  const mths=monthly.map(r=>String(r[1])).map(s=>s.length===6?`${s.slice(0,4)}/${s.slice(4)}`:s);
+
+  // Efficiency line
+  dc('ec');CH['ec']=new Chart(document.getElementById('ec'),{type:'line',data:{labels:mths,datasets:[{
+    label:'Wh/km',data:monthly.map(r=>n(r[3])),
+    borderColor:'#c8102e',backgroundColor:'rgba(200,16,46,.06)',
+    tension:.4,fill:true,pointRadius:3,pointBackgroundColor:'#c8102e',pointBorderColor:'transparent',borderWidth:1.5
+  }]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{
+    x:{ticks:{color:c.color,font:c.font,maxRotation:45,autoSkip:true,maxTicksLimit:20}},
+    y:{min:120,ticks:{color:c.color,font:c.font,callback:v=>v+' Wh'},grid:{color:c.gridColor},border:{display:false}}
+  }}});
+
+  // Monthly km
+  dc('kc');CH['kc']=new Chart(document.getElementById('kc'),{type:'bar',data:{labels:mths,datasets:[{
+    data:monthly.map(r=>n(r[2])),
+    backgroundColor:isDark?'rgba(255,255,255,.12)':'rgba(0,0,0,.15)',
+    borderRadius:0,
+    hoverBackgroundColor:isDark?'rgba(255,255,255,.25)':'rgba(0,0,0,.3)'
+  }]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{
+    x:{ticks:{color:c.color,font:c.font,maxRotation:45,autoSkip:true,maxTicksLimit:20}},
+    y:{ticks:{color:c.color,font:c.font,callback:v=>fmt(v)+' km'},grid:{color:c.gridColor},border:{display:false}}
+  }}});
+
+  // Monthly cost
+  dc('cc2');CH['cc2']=new Chart(document.getElementById('cc2'),{type:'bar',data:{labels:mths,datasets:[{
+    data:monthly.map(r=>n(r[6])),
+    backgroundColor:'rgba(200,16,46,.55)',borderRadius:0,hoverBackgroundColor:'#c8102e'
+  }]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{
+    x:{ticks:{color:c.color,font:c.font,maxRotation:45,autoSkip:true,maxTicksLimit:20}},
+    y:{ticks:{color:c.color,font:c.font,callback:v=>fmt(v)+' 元'},grid:{color:c.gridColor},border:{display:false}}
+  }}});
+}
+
+// ===== LOAD DATA =====
 async function loadData(){
   const ls=document.getElementById('ls');
   ls.classList.remove('fade');ls.style.display='flex';
   document.getElementById('es').classList.remove('show');
   try{
     const [cr,er,ar]=await Promise.all([gsheet('EBC-0289'),gsheet('特白能耗紀錄'),gsheet('特白充電能耗分析')]);
-    
+
     // 充電記錄：第5行(index 4)起
     const charges=cr.slice(4).filter(r=>r[0]&&r[2]);
-    
-    // 分析表：
-    // 找 Summary 行（第一欄包含 "Summary"）
+
+    // 找全部 Summary 行（第一欄包含 "Summary"，但排除年份 Summary）
     let sumRow=null;
     for(let i=0;i<ar.length;i++){
-      if(ar[i]&&String(ar[i][0]||'').includes('Summary')&&!String(ar[i][0]||'').includes('2024')&&!String(ar[i][0]||'').includes('2025')){
-        sumRow=ar[i];break;
+      const label=String(ar[i]?.[0]||'');
+      if(label==='Summary'){sumRow=ar[i];break;}
+    }
+    if(!sumRow){
+      // fallback: 找第一個非月份的摘要行
+      for(let i=0;i<ar.length;i++){
+        if(ar[i]&&String(ar[i][0]||'').includes('Summary')&&!/\d{4}/.test(String(ar[i][0]||''))){
+          sumRow=ar[i];break;
+        }
       }
     }
     if(!sumRow)sumRow=ar[8]||[];
-    
-    // 月份資料：找所有 6位數字的月份行（如 202408），且里程>0
+
+    // 月份資料：YYYYMM 格式，排除零里程
     const monthly=ar.filter(r=>{
       if(!r||!r[1])return false;
       const s=String(r[1]).replace(/\s/g,'');
       return /^\d{6}$/.test(s)&&n(r[2])>0;
     });
 
-    // Summary 欄位對照（依 read_file_content 結果）：
-    // [1]=里程, [2]=實際用電度數, [3]=Wh/km, [4]=km/度, [5]=實際充電度數
-    // [6]=實際花費, [7]=元/km, [8]=元/度, [9]=超充度數, [10]=慢充度數, [16]=停車費, [17]=超充費率
+    // Summary 欄位：[1]=里程, [2]=實際用電, [3]=Wh/km, [4]=km/度, [5]=充電度數
+    // [6]=費用, [7]=元/km, [8]=元/度, [9]=超充度數, [10]=慢充度數, [16]=停車費, [17]=超充費率
     const totalKm=n(sumRow[1]);
     const totalKwh=n(sumRow[5]);
     const totalCost=n(sumRow[6]);
-    const avgEff=n(sumRow[3]);   // Wh/km
-    const avgKmKwh=n(sumRow[4]); // km/度
-    const superKwh=n(sumRow[9]);
-    const slowKwh=n(sumRow[10]);
+    const avgEff=n(sumRow[3]);
+    const avgKmKwh=n(sumRow[4]);
     const parkCost=n(sumRow[16]);
     const superRate=n(sumRow[17]);
+
+    // 超充/慢充度數 — 直接從充電記錄算（最準確）
+    let superKwh=0,slowKwh=0;
+    charges.forEach(r=>{
+      const kwh=n(r[12]);
+      if(r[5]==='超充')superKwh+=kwh;
+      else slowKwh+=kwh;
+    });
 
     const lastMile=charges.reduce((mx,r)=>Math.max(mx,n(r[15])),0);
     const lastC=[...charges].reverse().find(r=>r[0]);
 
+    // Store for rebuild
+    _data={charges,monthly,sumRow,totalKm,totalKwh,totalCost,avgEff,avgKmKwh,parkCost,superRate,superKwh,slowKwh,lastMile};
+
+    // Hero
     document.getElementById('nav-mi').textContent=`${fmt(lastMile)} km`;
     document.getElementById('hero-sub').textContent=`提車 2024.08.20 · ${new Date().toLocaleDateString('zh-TW')} 更新`;
-
-    const hg=document.getElementById('hero-grid');
-    hg.innerHTML=[
+    document.getElementById('hero-grid').innerHTML=[
       [fmt(lastMile),'里程 km'],
       [fmt(totalKwh,0),'充電量 度'],
       [fmt(totalCost,0),'總費用 元'],
@@ -302,7 +520,7 @@ async function loadData(){
       [charges.length,'充電次數'],
     ].map(([v,l])=>`<div class="hm"><div class="hm-v">${v}</div><div class="hm-l">${l}</div></div>`).join('');
 
-    // Last Banner
+    // Last banner
     const ldate=lastC?fdate(lastC[0]):'-',lloc=lastC?lastC[7]||'-':'-';
     const lkwh=lastC?n(lastC[12]):0,lcost=lastC?n(lastC[20]):0;
     document.getElementById('lb').innerHTML=`
@@ -312,20 +530,10 @@ async function loadData(){
       <div class="lb-item"><div class="lb-v">${fmt(lcost,0)} <span style="font-size:13px;color:var(--tx3)">元</span></div><div class="lb-l">Cost</div></div><div class="lb-div"></div>
       <div class="lb-item"><div class="lb-v">${lastC?lastC[5]||'-':'-'}</div><div class="lb-l">Type</div></div>`;
 
-    // Donut
-    dc('tc');CH['tc']=new Chart(document.getElementById('tc'),{type:'doughnut',data:{
-      labels:['超充','慢充'],
-      datasets:[{data:[superKwh,slowKwh],backgroundColor:['#c8102e','rgba(255,255,255,.15)'],borderWidth:0,hoverBackgroundColor:['#e31937','rgba(255,255,255,.25)']}]
-    },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'rgba(255,255,255,.5)',font:{family:"'DM Mono',monospace",size:11},padding:16,boxWidth:8,boxHeight:8}},tooltip:{callbacks:{label:c=>` ${fmt(c.raw,1)} 度 (${Math.round(c.raw/(superKwh+slowKwh)*100)}%)`}}},cutout:'68%'}});
+    // Build charts
+    buildCharts(_data);
 
-    // Annual bar — 從充電記錄算各年費用
-    const yrC={};charges.forEach(r=>{const y=String(n(r[2]));if(y&&y!=='0')yrC[y]=(yrC[y]||0)+n(r[20])});
-    dc('yc');CH['yc']=new Chart(document.getElementById('yc'),{type:'bar',data:{
-      labels:Object.keys(yrC),
-      datasets:[{data:Object.values(yrC),backgroundColor:Object.keys(yrC).map((_,i,a)=>i===a.length-1?'#c8102e':'rgba(255,255,255,.12)'),borderRadius:0,hoverBackgroundColor:'#e31937'}]
-    },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:cd.color,font:cd.font},grid:{display:false}},y:{ticks:{color:cd.color,font:cd.font,callback:v=>fmt(v)},grid:{color:cd.gridColor},border:{display:false}}}}});
-
-    // Stations
+    // Stations bar list
     const ls2={};charges.forEach(r=>{const l=(r[7]||'未知').trim();if(!ls2[l])ls2[l]={c:0,k:0};ls2[l].c++;ls2[l].k+=n(r[12])});
     const sl=Object.entries(ls2).sort((a,b)=>b[1].c-a[1].c).slice(0,8);
     const mx=sl[0]?.[1]?.c||1;
@@ -346,36 +554,18 @@ async function loadData(){
         <td style="font-family:'DM Mono',monospace">${fmt(n(r[12]),1)}</td>
         <td style="font-family:'DM Mono',monospace">${n(r[13])>0?fmt(n(r[13]),2):'免費'}</td>
         <td style="font-family:'DM Mono',monospace">${fmt(n(r[20]),0)}</td>
-        <td style="font-family:'DM Mono',monospace;color:${ef>7?'#4caf7d':ef>6?'#b8975a':'#555'}">${ef>0?fmt(ef,2):'-'}</td>
+        <td style="font-family:'DM Mono',monospace;color:${ef>7?'#4caf7d':ef>6?'#b8975a':'var(--tx3)'}">${ef>0?fmt(ef,2):'-'}</td>
       </tr>`;
     }).join('');
 
-    // Efficiency metrics — 用 summary 的全部數值
+    // Efficiency metrics
+    const effVals=monthly.filter(r=>n(r[2])>100).map(r=>n(r[4]));
     document.getElementById('enm').innerHTML=[
       {l:'累積用電量',v:fmt(totalKwh,0),u:'度',s:'實際充電總量'},
       {l:'整體平均效率',v:fmt(avgKmKwh,2),u:'km/度',s:`= ${fmt(avgEff,1)} Wh/km`},
-      {l:'最佳月份',v:fmt(Math.max(...monthly.map(r=>n(r[4]))),2),u:'km/度',s:'歷史最省電月份'},
-      {l:'最差月份',v:fmt(Math.min(...monthly.filter(r=>n(r[2])>100).map(r=>n(r[4]))),2),u:'km/度',s:'歷史最耗電月份'},
+      {l:'最佳月份效率',v:fmt(Math.max(...effVals),2),u:'km/度',s:'歷史最省電月份'},
+      {l:'最差月份效率',v:fmt(Math.min(...effVals),2),u:'km/度',s:'歷史最耗電月份'},
     ].map(m=>`<div class="metric"><div class="m-l">${m.l}</div><div class="m-v">${m.v}<span class="m-u">${m.u}</span></div><div class="m-s">${m.s}</div></div>`).join('');
-
-    // Monthly labels 用 r[1] (YYYYMM)
-    const mths=monthly.map(r=>String(r[1])).map(s=>s.length===6?`${s.slice(0,4)}/${s.slice(4)}`:s);
-
-    dc('ec');CH['ec']=new Chart(document.getElementById('ec'),{type:'line',data:{labels:mths,datasets:[{
-      label:'Wh/km',data:monthly.map(r=>n(r[3])),
-      borderColor:'#c8102e',backgroundColor:'rgba(200,16,46,.06)',tension:.4,fill:true,
-      pointRadius:3,pointBackgroundColor:'#c8102e',pointBorderColor:'transparent',borderWidth:1.5
-    }]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{
-      x:{ticks:{color:cd.color,font:cd.font,maxRotation:45,autoSkip:true,maxTicksLimit:20}},
-      y:{min:120,ticks:{color:cd.color,font:cd.font,callback:v=>v+' Wh'},grid:{color:cd.gridColor},border:{display:false}}
-    }}});
-
-    dc('kc');CH['kc']=new Chart(document.getElementById('kc'),{type:'bar',data:{labels:mths,datasets:[{
-      data:monthly.map(r=>n(r[2])),backgroundColor:'rgba(255,255,255,.1)',borderRadius:0,hoverBackgroundColor:'rgba(255,255,255,.2)'
-    }]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{
-      x:{ticks:{color:cd.color,font:cd.font,maxRotation:45,autoSkip:true,maxTicksLimit:20}},
-      y:{ticks:{color:cd.color,font:cd.font,callback:v=>fmt(v)+' km'},grid:{color:cd.gridColor},border:{display:false}}
-    }}});
 
     // Cost metrics
     document.getElementById('com').innerHTML=[
@@ -385,22 +575,13 @@ async function loadData(){
       {l:'每公里成本',v:fmt(totalKm>0?totalCost/totalKm:0,2),u:'元/km',s:'總費用÷里程'},
     ].map(m=>`<div class="metric"><div class="m-l">${m.l}</div><div class="m-v">${m.v}<span class="m-u">${m.u}</span></div><div class="m-s">${m.s}</div></div>`).join('');
 
-    dc('cc2');CH['cc2']=new Chart(document.getElementById('cc2'),{type:'bar',data:{labels:mths,datasets:[{
-      data:monthly.map(r=>n(r[6])),backgroundColor:'rgba(200,16,46,.5)',borderRadius:0,hoverBackgroundColor:'#c8102e'
-    }]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{
-      x:{ticks:{color:cd.color,font:cd.font,maxRotation:45,autoSkip:true,maxTicksLimit:20}},
-      y:{ticks:{color:cd.color,font:cd.font,callback:v=>fmt(v)+' 元'},grid:{color:cd.gridColor},border:{display:false}}
-    }}});
-
     // Brand table
     const bs={};charges.forEach(r=>{const b=(r[4]||'未知').trim().replace(/\s+/g,'');if(!bs[b])bs[b]={c:0,k:0,co:0};bs[b].c++;bs[b].k+=n(r[12]);bs[b].co+=n(r[20])});
     document.getElementById('btb-wrap').innerHTML=`
       <div class="brand-row" style="padding-top:0">
         <div class="br-name" style="color:var(--tx3);font-size:10px;letter-spacing:2px;text-transform:uppercase">Brand</div>
-        <div class="br-head br-cnt">次數</div>
-        <div class="br-head br-kwh">充電量</div>
-        <div class="br-head">費用</div>
-        <div class="br-head">費率</div>
+        <div class="br-head br-cnt">次數</div><div class="br-head br-kwh">充電量</div>
+        <div class="br-head">費用</div><div class="br-head">費率</div>
       </div>`+
       Object.entries(bs).sort((a,b)=>b[1].c-a[1].c).map(([b,s])=>{
         const rt=s.k>0?s.co/s.k:0;
@@ -425,6 +606,8 @@ async function loadData(){
     document.getElementById('es').classList.add('show');
   }
 }
+
+initTheme();
 loadData();
 </script>
 </body>
