@@ -3,523 +3,224 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tesla Model Y RWD — 能耗互動儀表板</title>
+<title>Tesla Model Y RWD — 能耗儀表板</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=Orbitron:wght@400;600;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-
-<script>
-  tailwind.config = {
-    darkMode: ['attribute', '[data-theme="dark"]'],
-    theme: {
-      extend: {
-        colors: {
-          tesla: { green: '#1DB954', bright: '#39E87A', glow: '#0A3D1F', dark: '#052010' },
-          carbon: { 900: '#0C0F0A', 800: '#131810', 700: '#1A2114', 600: '#22291C', 500: '#2E3825' },
-        },
-        fontFamily: {
-          orb: ['Orbitron', 'monospace'],
-          mono: ['Space Mono', 'monospace'],
-          sans: ['Noto Sans TC', 'sans-serif'],
-        },
-        animation: {
-          'count-up': 'countUp 1.8s cubic-bezier(0.16,1,0.3,1) forwards',
-          'fade-in-up': 'fadeInUp 0.7s ease forwards',
-          'ring-fill': 'ringFill 2s ease forwards',
-          'pulse-green': 'pulseGreen 2s ease-in-out infinite',
-          'scan': 'scan 3s linear infinite',
-        },
-      }
-    }
-  }
-</script>
-
 <style>
-  /* ── GLOBAL THEME VARS ── */
-  :root {
-    --g: #1DB954;
-    --gb: #39E87A;
-    --gd: #0A3D1F;
-    --bg: #0C0F0A;
-    --s1: #131810;
-    --s2: #1A2114;
-    --s3: #22291C;
-    --tx: #E8F0E0;
-    --tm: #7A9068;
-    --td: #4A5C40;
-    --card-shadow: 0 4px 24px rgba(29,185,84,0.10), 0 1px 4px rgba(0,0,0,0.5);
-    --card-shadow-hover: 0 8px 40px rgba(29,185,84,0.22), 0 2px 8px rgba(0,0,0,0.6);
-  }
-  [data-theme="light"] {
-    --bg: #F0F7F0;
-    --s1: #FFFFFF;
-    --s2: #E8F5E9;
-    --s3: #D4EDD6;
-    --tx: #1A2F1C;
-    --tm: #3A6B3E;
-    --td: #7AAB7E;
-    --card-shadow: 0 4px 24px rgba(29,185,84,0.12), 0 1px 6px rgba(0,0,0,0.08);
-    --card-shadow-hover: 0 8px 40px rgba(29,185,84,0.22), 0 2px 12px rgba(0,0,0,0.12);
-  }
+:root{
+  --a:#38BDF8;--ab:#7DD3FC;--a2:#818CF8;--a3:#FB923C;--a4:#34D399;
+  --bg:#090C14;--s1:#0F1420;--s2:#151B2E;--s3:#1C2438;
+  --tx:#E2E8F4;--tm:#64748B;--td:#334155;
+  --hdr-bg:rgba(9,12,20,0.92);--hdr-brd:rgba(56,189,248,0.15);
+  --odo-c:#38BDF8;--odo-lc:#64748B;
+  --shd:0 4px 24px rgba(56,189,248,0.08),0 1px 4px rgba(0,0,0,0.6);
+  --shd-h:0 8px 40px rgba(56,189,248,0.20),0 2px 8px rgba(0,0,0,0.7);
+  --grid:rgba(56,189,248,0.04);
+}
+[data-theme="light"]{
+  --bg:#F1F5FB;--s1:#FFFFFF;--s2:#E8EFF9;--s3:#D6E4F4;
+  --tx:#0F172A;--tm:#475569;--td:#94A3B8;
+  --hdr-bg:rgba(241,245,251,0.92);--hdr-brd:rgba(56,189,248,0.25);
+  --odo-c:#0284C7;--odo-lc:#475569;
+  --shd:0 4px 24px rgba(56,189,248,0.10),0 1px 6px rgba(0,0,0,0.06);
+  --shd-h:0 8px 40px rgba(56,189,248,0.20),0 2px 10px rgba(0,0,0,0.10);
+  --grid:rgba(56,189,248,0.07);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;-webkit-tap-highlight-color:transparent;}
+body{background:var(--bg);color:var(--tx);font-family:'Noto Sans TC',sans-serif;min-height:100vh;overflow-x:hidden;transition:background .35s,color .35s;}
+body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:48px 48px;}
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  html { scroll-behavior: smooth; -webkit-tap-highlight-color: transparent; }
+/* SPLASH */
+#splash{position:fixed;inset:0;z-index:9999;background:#090C14;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2rem;transition:opacity .55s,transform .55s;}
+#splash.out{opacity:0;transform:scale(1.03);pointer-events:none;}
+.sp-ring{width:84px;height:84px;border-radius:50%;border:1.5px solid rgba(56,189,248,.25);display:flex;align-items:center;justify-content:center;position:relative;animation:spP 1.4s ease-in-out infinite;}
+.sp-ring::before{content:'';position:absolute;inset:-10px;border-radius:50%;border:1px solid rgba(56,189,248,.10);animation:spR 2s ease-in-out infinite;}
+@keyframes spP{0%,100%{box-shadow:0 0 0 0 rgba(56,189,248,.25)}50%{box-shadow:0 0 28px 6px rgba(56,189,248,.10)}}
+@keyframes spR{0%,100%{transform:scale(1);opacity:.3}50%{transform:scale(1.12);opacity:.08}}
+.sp-t{font-family:'Orbitron',monospace;font-size:clamp(1rem,4vw,1.5rem);font-weight:700;color:#38BDF8;letter-spacing:.22em;text-align:center;}
+.sp-s{font-family:'Space Mono',monospace;font-size:.68rem;color:rgba(56,189,248,.45);letter-spacing:.28em;}
+.sp-bw{width:220px;height:2px;background:rgba(56,189,248,.12);border-radius:1px;overflow:hidden;}
+.sp-b{height:100%;width:0;background:linear-gradient(90deg,#38BDF8,#7DD3FC);animation:spL 2.2s cubic-bezier(.4,0,.2,1) forwards;}
+.sp-st{font-family:'Space Mono',monospace;font-size:.6rem;color:rgba(56,189,248,.35);letter-spacing:.14em;}
+@keyframes spL{0%{width:0}55%{width:70%}88%{width:94%}100%{width:100%}}
 
-  body {
-    background: var(--bg);
-    color: var(--tx);
-    font-family: 'Noto Sans TC', sans-serif;
-    min-height: 100vh;
-    overflow-x: hidden;
-    transition: background 0.4s, color 0.4s;
-  }
+/* SCAN LINE */
+#scan-line{position:fixed;left:0;right:0;height:1px;z-index:1;background:linear-gradient(90deg,transparent,rgba(56,189,248,.25),transparent);pointer-events:none;animation:scanMove 8s linear infinite;opacity:0;transition:opacity .4s;}
+[data-theme="dark"] #scan-line{opacity:1;}
+@keyframes scanMove{0%{top:-2px}100%{top:100vh}}
 
-  /* ── GRID TEXTURE ── */
-  body::before {
-    content: '';
-    position: fixed; inset: 0; z-index: 0;
-    background-image:
-      linear-gradient(rgba(29,185,84,0.04) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(29,185,84,0.04) 1px, transparent 1px);
-    background-size: 48px 48px;
-    pointer-events: none;
-  }
-  [data-theme="light"] body::before {
-    background-image:
-      linear-gradient(rgba(29,185,84,0.07) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(29,185,84,0.07) 1px, transparent 1px);
-  }
+/* HEADER */
+#main-header{position:sticky;top:0;z-index:100;background:var(--hdr-bg);border-bottom:1px solid var(--hdr-brd);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);transition:background .35s,border-color .35s;}
+.hdr-in{max-width:1280px;margin:0 auto;padding:.9rem 1.25rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;}
+.hdr-brand{display:flex;align-items:center;gap:.75rem;}
+.tesla-t{width:38px;height:38px;border-radius:9px;flex-shrink:0;background:linear-gradient(135deg,var(--a),#0284C7);display:flex;align-items:center;justify-content:center;box-shadow:0 0 14px rgba(56,189,248,.3);transition:background .35s;}
+.tesla-t svg{width:22px;height:22px;fill:#fff;}
+.brand-name{font-family:'Orbitron',monospace;font-size:.88rem;font-weight:700;color:var(--tx);line-height:1.1;transition:color .35s;}
+.brand-sub{font-size:.58rem;color:var(--tm);letter-spacing:.14em;margin-top:1px;transition:color .35s;}
+/* ODO BLOCK — fully theme-switched via CSS vars */
+.odo-block{text-align:right;padding:.4rem .75rem;border-radius:10px;background:var(--s2);border:1px solid var(--hdr-brd);transition:background .35s,border-color .35s;}
+.odo-lbl{font-family:'Space Mono',monospace;font-size:.52rem;color:var(--odo-lc);letter-spacing:.15em;text-transform:uppercase;transition:color .35s;}
+.odo-val{font-family:'Orbitron',monospace;font-size:1.4rem;font-weight:900;color:var(--odo-c);line-height:1;letter-spacing:-.02em;transition:color .35s;}
+.odo-unit{font-size:.55rem;color:var(--odo-lc);transition:color .35s;}
+.theme-btn{width:38px;height:38px;border-radius:9px;border:1px solid var(--hdr-brd);background:var(--s2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.95rem;transition:all .2s cubic-bezier(.34,1.56,.64,1);}
+.theme-btn:hover{border-color:var(--a);transform:scale(1.08);}
+.theme-btn:active{transform:scale(.94);}
+.sync-chip{display:flex;align-items:center;gap:5px;padding:.25rem .7rem;border-radius:999px;border:1px solid var(--hdr-brd);background:var(--s2);font-family:'Space Mono',monospace;font-size:.58rem;color:var(--tm);cursor:pointer;transition:all .2s;white-space:nowrap;}
+.sync-chip:hover{border-color:var(--a);color:var(--a);}
+.sdot{width:6px;height:6px;border-radius:50%;background:var(--td);flex-shrink:0;}
+.sdot.ok{background:#34D399;box-shadow:0 0 6px rgba(52,211,153,.5);}
+.sdot.fail{background:#F87171;}
+.sdot.spin{background:var(--a);animation:dSpin .8s linear infinite;}
+@keyframes dSpin{0%{opacity:1}50%{opacity:.2}100%{opacity:1}}
 
-  /* ── SPLASH SCREEN ── */
-  #splash {
-    position: fixed; inset: 0; z-index: 9999;
-    background: #0C0F0A;
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    gap: 2rem;
-    transition: opacity 0.6s ease, transform 0.6s ease;
-  }
-  #splash.hidden { opacity: 0; transform: translateY(-20px); pointer-events: none; }
+/* FILTER */
+.fw{position:relative;z-index:9;border-bottom:1px solid rgba(56,189,248,.08);}
+.fi{max-width:1280px;margin:0 auto;padding:.65rem 1.25rem;display:flex;align-items:center;gap:.45rem;flex-wrap:wrap;}
+.fl{font-family:'Space Mono',monospace;font-size:.58rem;color:var(--tm);letter-spacing:.12em;margin-right:.2rem;}
+.pill{padding:.28rem .85rem;border:1px solid rgba(56,189,248,.18);border-radius:999px;background:transparent;color:var(--tm);font-family:'Space Mono',monospace;font-size:.68rem;cursor:pointer;white-space:nowrap;transition:all .18s cubic-bezier(.34,1.56,.64,1);}
+.pill:hover{border-color:var(--a);color:var(--a);transform:translateY(-1px);}
+.pill:active{transform:scale(.95);}
+.pill.active{background:var(--a);border-color:var(--a);color:#090C14;font-weight:700;box-shadow:0 0 14px rgba(56,189,248,.4);}
+[data-theme="light"] .pill.active{color:#fff;}
+.pb{margin-left:auto;font-family:'Space Mono',monospace;font-size:.58rem;color:var(--td);}
 
-  .splash-logo {
-    width: 80px; height: 80px;
-    border-radius: 50%;
-    border: 2px solid rgba(29,185,84,0.3);
-    display: flex; align-items: center; justify-content: center;
-    position: relative;
-    animation: splashPulse 1.2s ease-in-out infinite;
-  }
-  .splash-logo svg { width: 44px; height: 44px; fill: #1DB954; }
-  .splash-logo::before {
-    content: '';
-    position: absolute; inset: -8px;
-    border-radius: 50%;
-    border: 1px solid rgba(29,185,84,0.15);
-    animation: splashRing 1.8s ease-in-out infinite;
-  }
+/* TOAST */
+#toast{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%) translateY(20px);z-index:9998;padding:.75rem 1.25rem;border-radius:12px;background:var(--s2);border:1px solid rgba(56,189,248,.2);font-family:'Space Mono',monospace;font-size:.68rem;color:var(--tx);box-shadow:0 8px 32px rgba(0,0,0,.4);display:flex;align-items:center;gap:.6rem;opacity:0;transition:all .3s;pointer-events:none;}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+#toast.err{border-color:rgba(248,113,113,.4);}
+#toast.ok{border-color:rgba(52,211,153,.4);}
 
-  .splash-title {
-    font-family: 'Orbitron', monospace;
-    font-size: clamp(1.1rem, 4vw, 1.6rem);
-    font-weight: 700;
-    color: #1DB954;
-    letter-spacing: 0.2em;
-    text-align: center;
-  }
-  .splash-sub {
-    font-family: 'Space Mono', monospace;
-    font-size: 0.7rem;
-    color: rgba(29,185,84,0.5);
-    letter-spacing: 0.3em;
-    text-transform: uppercase;
-  }
+/* APP */
+#app{position:relative;z-index:1;max-width:1280px;margin:0 auto;padding:1.5rem 1.25rem 3rem;opacity:0;transition:opacity .45s;}
+#app.v{opacity:1;}
+.sl{font-family:'Space Mono',monospace;font-size:.58rem;font-weight:700;color:var(--a);letter-spacing:.2em;text-transform:uppercase;margin-bottom:.7rem;display:flex;align-items:center;gap:.5rem;}
+.sl::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,rgba(56,189,248,.25),transparent);}
+.sb{margin-bottom:1.7rem;}
 
-  .splash-bar-wrap {
-    width: 240px; height: 2px;
-    background: rgba(29,185,84,0.15);
-    border-radius: 1px; overflow: hidden;
-  }
-  .splash-bar {
-    height: 100%; width: 0;
-    background: linear-gradient(90deg, #1DB954, #39E87A);
-    border-radius: 1px;
-    animation: splashLoad 2.2s cubic-bezier(0.4,0,0.2,1) forwards;
-  }
-  .splash-status {
-    font-family: 'Space Mono', monospace;
-    font-size: 0.65rem;
-    color: rgba(29,185,84,0.4);
-    letter-spacing: 0.15em;
-  }
+/* KPI */
+.kg{display:grid;grid-template-columns:repeat(2,1fr);gap:.7rem;}
+@media(min-width:480px){.kg{grid-template-columns:repeat(3,1fr);}}
+@media(min-width:768px){.kg{grid-template-columns:repeat(4,1fr);}}
+.kc{background:var(--s1);border:1px solid rgba(56,189,248,.10);border-radius:14px;padding:1rem 1.05rem .9rem;position:relative;overflow:hidden;box-shadow:var(--shd);cursor:pointer;transition:all .2s cubic-bezier(.34,1.56,.64,1);}
+.kc::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--kca,var(--a));opacity:.9;}
+.kc::after{content:'';position:absolute;top:-36px;right:-16px;width:72px;height:72px;border-radius:50%;background:var(--kca,var(--a));opacity:.04;}
+.kc:hover{box-shadow:var(--shd-h);transform:translateY(-3px) scale(1.02);border-color:rgba(56,189,248,.25);}
+.kc:active{transform:scale(.97);}
+.ki{font-size:.9rem;margin-bottom:.45rem;}
+.kl{font-size:.57rem;color:var(--tm);letter-spacing:.1em;text-transform:uppercase;font-family:'Space Mono',monospace;margin-bottom:.3rem;}
+.kv{font-family:'Orbitron',monospace;font-size:clamp(1rem,3vw,1.4rem);font-weight:700;color:var(--tx);line-height:1;letter-spacing:-.02em;}
+.ku{font-size:.56rem;color:var(--tm);margin-top:.22rem;font-family:'Space Mono',monospace;}
 
-  @keyframes splashPulse { 0%,100%{box-shadow:0 0 0 0 rgba(29,185,84,0.3)} 50%{box-shadow:0 0 32px 8px rgba(29,185,84,0.15)} }
-  @keyframes splashRing { 0%,100%{transform:scale(1);opacity:0.3} 50%{transform:scale(1.1);opacity:0.1} }
-  @keyframes splashLoad { 0%{width:0} 60%{width:75%} 90%{width:95%} 100%{width:100%} }
+/* HERO */
+.hr{display:grid;grid-template-columns:1fr;gap:.7rem;margin-bottom:1.5rem;}
+@media(min-width:768px){.hr{grid-template-columns:1fr 1fr;}}
+.hc{background:var(--s1);border:1px solid rgba(56,189,248,.10);border-radius:16px;padding:1.4rem;box-shadow:var(--shd);position:relative;overflow:hidden;transition:background .35s,border-color .35s;}
+.hbn{font-family:'Orbitron',monospace;font-size:clamp(2.2rem,7vw,4rem);font-weight:900;color:var(--a);line-height:1;letter-spacing:-.04em;}
+.hbs{font-size:.7rem;color:var(--tm);margin-top:.35rem;letter-spacing:.07em;}
+.ms{background:var(--s2);border-radius:9px;padding:.55rem .7rem;transition:background .35s;}
+.msl{font-size:.53rem;color:var(--tm);font-family:'Space Mono',monospace;}
+.msv{font-family:'Orbitron',monospace;font-size:.95rem;font-weight:700;color:var(--a);margin-top:2px;}
+.msu{font-size:.52rem;color:var(--td);font-family:'Space Mono',monospace;}
 
-  /* ── SCAN LINE (dark mode only) ── */
-  #scan-line {
-    position: fixed; left: 0; right: 0; height: 1px; z-index: 1;
-    background: linear-gradient(90deg, transparent, rgba(29,185,84,0.3), transparent);
-    pointer-events: none;
-    animation: scanMove 6s linear infinite;
-    opacity: 0;
-    transition: opacity 0.4s;
-  }
-  [data-theme="dark"] #scan-line { opacity: 1; }
-  @keyframes scanMove { 0%{top:-2px} 100%{top:100vh} }
+/* RING */
+.rw{position:relative;display:inline-flex;align-items:center;justify-content:center;}
+.rs{width:116px;height:116px;transform:rotate(-90deg);}
+.rt{fill:none;stroke:rgba(56,189,248,.08);stroke-width:8;}
+.rf-super{fill:none;stroke:var(--a);stroke-width:8;stroke-linecap:round;stroke-dasharray:283;stroke-dashoffset:283;transition:stroke-dashoffset 1.8s cubic-bezier(.4,0,.2,1);}
+.rf-slow{fill:none;stroke:#34D399;stroke-width:8;stroke-linecap:round;stroke-dasharray:283;stroke-dashoffset:283;transition:stroke-dashoffset 1.8s .2s cubic-bezier(.4,0,.2,1);}
+.rc{position:absolute;text-align:center;}
+.rp{font-family:'Orbitron',monospace;font-size:1.1rem;font-weight:700;color:var(--tx);}
+.rl{font-size:.52rem;color:var(--tm);font-family:'Space Mono',monospace;}
 
-  /* ── HEADER ── */
-  #main-header {
-    position: relative; z-index: 10;
-    border-bottom: 1px solid rgba(29,185,84,0.12);
-    background: rgba(var(--bg-rgb,12,15,10), 0.85);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-  }
-  .header-inner {
-    max-width: 1280px; margin: 0 auto;
-    padding: 1rem 1.25rem;
-    display: flex; align-items: center; justify-content: space-between;
-    flex-wrap: wrap; gap: 0.75rem;
-  }
-  .header-brand { display: flex; align-items: center; gap: 0.75rem; }
-  .tesla-t {
-    width: 40px; height: 40px; flex-shrink: 0;
-    background: linear-gradient(135deg, #1DB954, #0A3D1F);
-    border-radius: 10px;
-    display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 0 16px rgba(29,185,84,0.3);
-  }
-  .tesla-t svg { width: 24px; height: 24px; fill: #fff; }
-  .brand-name {
-    font-family: 'Orbitron', monospace;
-    font-size: 0.9rem; font-weight: 700;
-    color: var(--tx);
-    line-height: 1.1;
-  }
-  .brand-sub { font-size: 0.6rem; color: var(--tm); letter-spacing: 0.15em; margin-top: 1px; }
-  .header-right { display: flex; align-items: center; gap: 0.75rem; }
-  .odo-display { text-align: right; }
-  .odo-label { font-family: 'Space Mono', monospace; font-size: 0.55rem; color: var(--tm); letter-spacing: 0.15em; text-transform: uppercase; }
-  .odo-val {
-    font-family: 'Orbitron', monospace;
-    font-size: 1.5rem; font-weight: 900;
-    color: #1DB954;
-    line-height: 1;
-    letter-spacing: -0.02em;
-  }
-  .odo-unit { font-size: 0.6rem; color: var(--tm); }
+/* CHARTS */
+.cc{background:var(--s1);border:1px solid rgba(56,189,248,.10);border-radius:14px;padding:1.2rem;box-shadow:var(--shd);transition:background .35s;}
+.ct{font-size:.65rem;color:var(--tm);font-family:'Space Mono',monospace;margin-bottom:.65rem;letter-spacing:.08em;}
+.cg2{display:grid;grid-template-columns:1fr;gap:.7rem;margin-bottom:1.5rem;}
+@media(min-width:768px){.cg2{grid-template-columns:1fr 1fr;}}
+.legend{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:7px;font-size:.61rem;color:var(--tm);font-family:'Space Mono',monospace;}
+.ld{width:8px;height:8px;border-radius:2px;display:inline-block;margin-right:4px;}
 
-  /* ── THEME TOGGLE ── */
-  .theme-btn {
-    width: 40px; height: 40px;
-    border-radius: 10px;
-    border: 1px solid rgba(29,185,84,0.2);
-    background: var(--s2);
-    cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    transition: all 0.2s;
-    font-size: 1rem;
-  }
-  .theme-btn:hover { border-color: #1DB954; background: var(--s3); transform: scale(1.05); }
-  .theme-btn:active { transform: scale(0.95); }
+/* TABLE */
+.tw{background:var(--s1);border:1px solid rgba(56,189,248,.10);border-radius:14px;overflow:hidden;box-shadow:var(--shd);margin-bottom:1.5rem;transition:background .35s;}
+.th{padding:.9rem 1.2rem .7rem;border-bottom:1px solid rgba(56,189,248,.07);}
+.sx{overflow-x:auto;}
+.dt{width:100%;border-collapse:collapse;font-size:.71rem;}
+.dt th{padding:.48rem .7rem;text-align:right;font-family:'Space Mono',monospace;font-size:.56rem;font-weight:400;color:var(--tm);letter-spacing:.08em;border-bottom:1px solid rgba(56,189,248,.07);white-space:nowrap;}
+.dt th:first-child{text-align:left;}
+.dt td{padding:.48rem .7rem;text-align:right;border-bottom:1px solid rgba(56,189,248,.04);color:var(--tx);white-space:nowrap;transition:background .12s;}
+.dt td:first-child{text-align:left;color:var(--tm);font-family:'Space Mono',monospace;font-size:.62rem;}
+.dt tr:last-child td{border-bottom:none;}
+.dt tr:hover td{background:rgba(56,189,248,.04);}
+.ib{display:inline-block;height:3px;border-radius:2px;vertical-align:middle;margin-right:4px;background:var(--a);opacity:.55;}
+.eb{display:inline-block;padding:1px 6px;border-radius:4px;font-family:'Space Mono',monospace;font-size:.58rem;font-weight:700;}
+.eg{background:rgba(52,211,153,.12);color:#34D399;}
+.em{background:rgba(250,204,21,.10);color:#FACC15;}
+.ep{background:rgba(248,113,113,.08);color:#F87171;}
 
-  /* ── FILTER BAR ── */
-  #filter-bar {
-    position: relative; z-index: 9;
-    border-bottom: 1px solid rgba(29,185,84,0.08);
-    padding: 0.75rem 1.25rem;
-    max-width: 1280px; margin: 0 auto;
-    display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
-  }
-  .filter-label { font-size: 0.6rem; color: var(--tm); letter-spacing: 0.12em; font-family: 'Space Mono', monospace; margin-right: 0.25rem; }
-  .pill {
-    padding: 0.3rem 0.9rem;
-    border: 1px solid rgba(29,185,84,0.2);
-    border-radius: 999px;
-    background: transparent;
-    color: var(--tm);
-    font-size: 0.7rem;
-    font-family: 'Space Mono', monospace;
-    cursor: pointer;
-    transition: all 0.18s cubic-bezier(0.34,1.56,0.64,1);
-    white-space: nowrap;
-  }
-  .pill:hover { border-color: #1DB954; color: #1DB954; transform: translateY(-1px); }
-  .pill:active { transform: scale(0.95); }
-  .pill.active {
-    background: #1DB954;
-    border-color: #1DB954;
-    color: #0C0F0A;
-    font-weight: 700;
-    box-shadow: 0 0 16px rgba(29,185,84,0.4);
-  }
+/* STATION */
+.sg{display:grid;grid-template-columns:repeat(2,1fr);gap:.6rem;}
+@media(min-width:480px){.sg{grid-template-columns:repeat(3,1fr);}}
+@media(min-width:768px){.sg{grid-template-columns:repeat(4,1fr);}}
+.scard{background:var(--s1);border:1px solid rgba(56,189,248,.10);border-radius:11px;padding:.8rem .9rem;transition:all .18s cubic-bezier(.34,1.56,.64,1);cursor:pointer;}
+.scard:hover{transform:translateY(-2px) scale(1.02);border-color:rgba(56,189,248,.28);box-shadow:var(--shd-h);}
+.scard:active{transform:scale(.97);}
+.srk{font-family:'Orbitron',monospace;font-size:.52rem;color:var(--td);margin-bottom:.28rem;}
+.snm{font-size:.66rem;color:var(--tm);margin-bottom:.28rem;line-height:1.3;}
+.scn{font-family:'Orbitron',monospace;font-size:1.2rem;font-weight:700;color:var(--tx);line-height:1;}
+.sdt{font-size:.56rem;color:var(--td);margin-top:.18rem;font-family:'Space Mono',monospace;}
 
-  /* ── MAIN CONTENT ── */
-  #app {
-    position: relative; z-index: 1;
-    max-width: 1280px; margin: 0 auto;
-    padding: 1.5rem 1.25rem 3rem;
-    opacity: 0;
-    transition: opacity 0.5s ease;
-  }
-  #app.visible { opacity: 1; }
+/* DATA SOURCE PANEL */
+.dp{background:var(--s1);border:1px solid rgba(56,189,248,.12);border-radius:14px;padding:1.2rem;box-shadow:var(--shd);margin-bottom:1.7rem;transition:background .35s;}
+.dr{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;}
+.di{flex:1;min-width:200px;padding:.45rem .8rem;border:1px solid rgba(56,189,248,.2);border-radius:8px;background:var(--s2);color:var(--tx);font-family:'Space Mono',monospace;font-size:.68rem;outline:none;transition:border-color .15s;}
+.di:focus{border-color:var(--a);}
+.di::placeholder{color:var(--td);}
+.db{padding:.45rem 1rem;border:1px solid var(--a);border-radius:8px;background:var(--a);color:#090C14;font-family:'Space Mono',monospace;font-size:.68rem;font-weight:700;cursor:pointer;white-space:nowrap;transition:all .18s cubic-bezier(.34,1.56,.64,1);}
+.db:hover{opacity:.88;transform:scale(1.03);}
+.db:active{transform:scale(.97);}
+.db.sec{background:transparent;color:var(--a);}
+.db.sec:hover{background:rgba(56,189,248,.08);}
 
-  /* ── SECTION LABELS ── */
-  .sec-label {
-    font-family: 'Space Mono', monospace;
-    font-size: 0.6rem; font-weight: 700;
-    color: #1DB954;
-    letter-spacing: 0.2em; text-transform: uppercase;
-    margin-bottom: 0.75rem;
-    display: flex; align-items: center; gap: 0.5rem;
-  }
-  .sec-label::after {
-    content: '';
-    flex: 1; height: 1px;
-    background: linear-gradient(90deg, rgba(29,185,84,0.3), transparent);
-  }
-
-  /* ── KPI CARDS ── */
-  .kpi-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 0.75rem;
-  }
-  @media(min-width: 480px) { .kpi-grid { grid-template-columns: repeat(3, 1fr); } }
-  @media(min-width: 768px) { .kpi-grid { grid-template-columns: repeat(4, 1fr); } }
-  @media(min-width: 1024px) { .kpi-grid { grid-template-columns: repeat(4, 1fr); } }
-
-  .kpi-card {
-    background: var(--s1);
-    border-radius: 16px;
-    border: 1px solid rgba(29,185,84,0.12);
-    padding: 1.1rem 1.1rem 1rem;
-    position: relative; overflow: hidden;
-    box-shadow: var(--card-shadow);
-    cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1);
-    transform-origin: center;
-  }
-  .kpi-card::before {
-    content: '';
-    position: absolute; top: 0; left: 0; right: 0; height: 2px;
-    background: var(--kpi-accent, #1DB954);
-    opacity: 0.9;
-  }
-  .kpi-card::after {
-    content: '';
-    position: absolute; top: -40px; right: -20px;
-    width: 80px; height: 80px;
-    border-radius: 50%;
-    background: var(--kpi-accent, #1DB954);
-    opacity: 0.04;
-  }
-  .kpi-card:hover {
-    box-shadow: var(--card-shadow-hover);
-    transform: translateY(-3px) scale(1.02);
-    border-color: rgba(29,185,84,0.3);
-  }
-  .kpi-card:active { transform: scale(0.97); box-shadow: var(--card-shadow); }
-  .kpi-icon { font-size: 1rem; margin-bottom: 0.5rem; line-height: 1; }
-  .kpi-label {
-    font-size: 0.58rem; color: var(--tm);
-    letter-spacing: 0.1em; text-transform: uppercase;
-    font-family: 'Space Mono', monospace;
-    margin-bottom: 0.35rem;
-  }
-  .kpi-val {
-    font-family: 'Orbitron', monospace;
-    font-size: clamp(1.1rem, 3vw, 1.5rem);
-    font-weight: 700; line-height: 1;
-    color: var(--tx);
-    letter-spacing: -0.02em;
-  }
-  .kpi-unit { font-size: 0.58rem; color: var(--tm); margin-top: 0.25rem; font-family: 'Space Mono', monospace; }
-
-  /* ── HERO ROW ── */
-  .hero-row {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 0.75rem;
-    margin-bottom: 1.5rem;
-  }
-  @media(min-width: 768px) { .hero-row { grid-template-columns: 1fr 1fr; } }
-
-  .hero-card {
-    background: var(--s1);
-    border-radius: 20px;
-    border: 1px solid rgba(29,185,84,0.15);
-    padding: 1.5rem;
-    box-shadow: var(--card-shadow);
-    position: relative; overflow: hidden;
-  }
-  .hero-big-num {
-    font-family: 'Orbitron', monospace;
-    font-size: clamp(2.5rem, 8vw, 4.5rem);
-    font-weight: 900;
-    color: #1DB954;
-    line-height: 1;
-    letter-spacing: -0.04em;
-  }
-  .hero-big-label { font-size: 0.75rem; color: var(--tm); margin-top: 0.4rem; letter-spacing: 0.08em; }
-
-  /* Energy ring */
-  .ring-wrap { position: relative; display: inline-flex; align-items: center; justify-content: center; }
-  .ring-svg { width: 120px; height: 120px; transform: rotate(-90deg); }
-  .ring-track { fill: none; stroke: rgba(29,185,84,0.1); stroke-width: 8; }
-  .ring-fill-super { fill: none; stroke: #1DB954; stroke-width: 8; stroke-linecap: round;
-    stroke-dasharray: 283; stroke-dashoffset: 283; transition: stroke-dashoffset 1.8s cubic-bezier(0.4,0,0.2,1); }
-  .ring-fill-slow  { fill: none; stroke: #38bdf8; stroke-width: 8; stroke-linecap: round;
-    stroke-dasharray: 283; stroke-dashoffset: 283; transition: stroke-dashoffset 1.8s 0.2s cubic-bezier(0.4,0,0.2,1); }
-  .ring-center { position: absolute; text-align: center; }
-  .ring-pct { font-family: 'Orbitron', monospace; font-size: 1.2rem; font-weight: 700; color: var(--tx); }
-  .ring-sublabel { font-size: 0.55rem; color: var(--tm); font-family: 'Space Mono', monospace; }
-
-  /* ── CHART CARDS ── */
-  .chart-grid-2 { display: grid; grid-template-columns: 1fr; gap: 0.75rem; margin-bottom: 1.5rem; }
-  @media(min-width: 768px) { .chart-grid-2 { grid-template-columns: 1fr 1fr; } }
-  .chart-card {
-    background: var(--s1);
-    border-radius: 16px;
-    border: 1px solid rgba(29,185,84,0.1);
-    padding: 1.25rem;
-    box-shadow: var(--card-shadow);
-  }
-  .chart-title { font-size: 0.68rem; color: var(--tm); font-family: 'Space Mono', monospace; margin-bottom: 0.75rem; letter-spacing: 0.08em; }
-  .chart-wrap { position: relative; width: 100%; }
-
-  /* ── TABLE ── */
-  .table-wrap {
-    background: var(--s1);
-    border-radius: 16px;
-    border: 1px solid rgba(29,185,84,0.1);
-    overflow: hidden;
-    box-shadow: var(--card-shadow);
-    margin-bottom: 1.5rem;
-  }
-  .table-head {
-    padding: 1rem 1.25rem 0.75rem;
-    border-bottom: 1px solid rgba(29,185,84,0.08);
-  }
-  .scroll-x { overflow-x: auto; }
-  .data-table { width: 100%; border-collapse: collapse; font-size: 0.72rem; }
-  .data-table th {
-    padding: 0.5rem 0.75rem; text-align: right;
-    font-family: 'Space Mono', monospace; font-size: 0.57rem; font-weight: 400;
-    color: var(--tm); letter-spacing: 0.08em;
-    border-bottom: 1px solid rgba(29,185,84,0.08); white-space: nowrap;
-  }
-  .data-table th:first-child { text-align: left; }
-  .data-table td {
-    padding: 0.5rem 0.75rem; text-align: right;
-    border-bottom: 1px solid rgba(29,185,84,0.05);
-    color: var(--tx); white-space: nowrap; transition: background 0.15s;
-  }
-  .data-table td:first-child { text-align: left; color: var(--tm); font-family: 'Space Mono', monospace; font-size: 0.65rem; }
-  .data-table tr:last-child td { border-bottom: none; }
-  .data-table tr:hover td { background: rgba(29,185,84,0.04); }
-  .inline-bar { display: inline-block; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 5px; background: #1DB954; opacity: 0.6; }
-  .eff-badge {
-    display: inline-block; padding: 1px 6px; border-radius: 4px;
-    font-family: 'Space Mono', monospace; font-size: 0.6rem; font-weight: 700;
-  }
-  .eff-good { background: rgba(29,185,84,0.15); color: #1DB954; }
-  .eff-avg  { background: rgba(250,204,21,0.12); color: #FACC15; }
-  .eff-poor { background: rgba(239,68,68,0.1); color: #EF4444; }
-
-  /* ── STATION GRID ── */
-  .station-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 0.6rem;
-  }
-  @media(min-width: 480px) { .station-grid { grid-template-columns: repeat(3, 1fr); } }
-  @media(min-width: 768px) { .station-grid { grid-template-columns: repeat(4, 1fr); } }
-
-  .station-card {
-    background: var(--s1);
-    border-radius: 12px;
-    border: 1px solid rgba(29,185,84,0.1);
-    padding: 0.85rem 0.9rem;
-    transition: all 0.18s cubic-bezier(0.34,1.56,0.64,1);
-    cursor: pointer;
-  }
-  .station-card:hover { transform: translateY(-2px) scale(1.02); border-color: rgba(29,185,84,0.3); box-shadow: var(--card-shadow-hover); }
-  .station-card:active { transform: scale(0.97); }
-  .s-rank { font-family: 'Orbitron', monospace; font-size: 0.55rem; color: var(--td); margin-bottom: 0.3rem; }
-  .s-name { font-size: 0.68rem; color: var(--tm); margin-bottom: 0.3rem; line-height: 1.3; }
-  .s-count { font-family: 'Orbitron', monospace; font-size: 1.3rem; font-weight: 700; color: var(--tx); line-height: 1; }
-  .s-detail { font-size: 0.58rem; color: var(--td); margin-top: 0.2rem; font-family: 'Space Mono', monospace; }
-
-  /* ── SECTION SPACING ── */
-  .section-block { margin-bottom: 1.75rem; }
-
-  /* ── LEGEND ── */
-  .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 8px; font-size: 0.62rem; color: var(--tm); font-family: 'Space Mono', monospace; }
-  .legend-dot { width: 8px; height: 8px; border-radius: 2px; display: inline-block; margin-right: 4px; }
-
-  /* ── SCROLLBAR ── */
-  ::-webkit-scrollbar { width: 4px; height: 4px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: rgba(29,185,84,0.2); border-radius: 2px; }
-
-  /* ── FOOTER ── */
-  footer {
-    position: relative; z-index: 1;
-    text-align: center; padding: 1.5rem;
-    font-family: 'Space Mono', monospace; font-size: 0.58rem; color: var(--td);
-    border-top: 1px solid rgba(29,185,84,0.08);
-    letter-spacing: 0.08em;
-  }
-
-  /* ── COUNTER ANIMATION ── */
-  @keyframes countReveal { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
-  .kpi-val { animation: countReveal 0.5s ease forwards; }
-
-  /* ── RESPONSIVE TEXT ── */
-  @media(max-width:380px) {
-    .kpi-val { font-size: 1rem; }
-    .hero-big-num { font-size: 2.2rem; }
-  }
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:rgba(56,189,248,.2);border-radius:2px;}
+footer{position:relative;z-index:1;text-align:center;padding:1.5rem;font-family:'Space Mono',monospace;font-size:.56rem;color:var(--td);border-top:1px solid rgba(56,189,248,.06);letter-spacing:.07em;}
 </style>
 </head>
 <body>
 
-<!-- ╔══════════════════════════════════════════════╗ -->
-<!-- ║  SPLASH SCREEN                               ║ -->
-<!-- ╚══════════════════════════════════════════════╝ -->
+<div id="toast"><span id="ti">ℹ️</span><span id="tm2"></span></div>
+
 <div id="splash">
-  <div class="splash-logo">
-    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-      <path d="M50 8C30 8 15 20 10 35L30 35C33 28 41 24 50 24C59 24 67 28 70 35L90 35C85 20 70 8 50 8Z"/>
-      <path d="M50 42L50 92M30 35L50 42L70 35" stroke="#1DB954" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <div class="sp-ring">
+    <svg viewBox="0 0 100 100" width="46" height="46" xmlns="http://www.w3.org/2000/svg">
+      <path d="M50 8C30 8 15 20 10 35L30 35C33 28 41 24 50 24C59 24 67 28 70 35L90 35C85 20 70 8 50 8Z" fill="#38BDF8"/>
+      <path d="M50 42L50 92M30 35L50 42L70 35" stroke="rgba(56,189,248,.6)" stroke-width="4" fill="none" stroke-linecap="round"/>
     </svg>
   </div>
-  <div>
-    <div class="splash-title">MODEL Y RWD</div>
-    <div class="splash-sub" style="margin-top:4px">EBC-0289 · 能耗分析系統</div>
+  <div style="text-align:center">
+    <div class="sp-t">MODEL Y RWD</div>
+    <div class="sp-s" style="margin-top:5px">EBC-0289 · 數據分析系統</div>
   </div>
-  <div>
-    <div class="splash-bar-wrap"><div class="splash-bar"></div></div>
-    <div class="splash-status" style="margin-top:8px;text-align:center" id="splash-status">INITIALIZING DATA ENGINE...</div>
+  <div style="text-align:center">
+    <div class="sp-bw"><div class="sp-b"></div></div>
+    <div class="sp-st" style="margin-top:8px" id="spst">INITIALIZING DATA ENGINE...</div>
   </div>
 </div>
 
-<!-- ── SCAN LINE ── -->
 <div id="scan-line"></div>
 
-<!-- ╔══════════════════════════════════════════════╗ -->
-<!-- ║  HEADER                                      ║ -->
-<!-- ╚══════════════════════════════════════════════╝ -->
 <div id="main-header">
-  <div class="header-inner">
-    <div class="header-brand">
+  <div class="hdr-in">
+    <div class="hdr-brand">
       <div class="tesla-t">
         <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-          <path d="M50 8C30 8 15 20 10 35L30 35C33 28 41 24 50 24C59 24 67 28 70 35L90 35C85 20 70 8 50 8Z"/>
-          <path d="M50 42L50 92M30 35L50 42L70 35" stroke="rgba(255,255,255,0.7)" stroke-width="4" fill="none" stroke-linecap="round"/>
+          <path d="M50 8C30 8 15 20 10 35L30 35C33 28 41 24 50 24C59 24 67 28 70 35L90 35C85 20 70 8 50 8Z" fill="#fff"/>
+          <path d="M50 42L50 92M30 35L50 42L70 35" stroke="rgba(255,255,255,.65)" stroke-width="4" fill="none" stroke-linecap="round"/>
         </svg>
       </div>
       <div>
@@ -527,693 +228,606 @@
         <div class="brand-sub">EBC-0289 · 能耗儀表板</div>
       </div>
     </div>
-    <div class="header-right">
-      <div class="odo-display">
-        <div class="odo-label">儀表里程</div>
-        <div class="odo-val" id="hdr-odo">25,932</div>
+    <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;">
+      <div class="sync-chip" id="sync-chip" onclick="syncFromSheet()" title="從 Google Sheets 同步">
+        <div class="sdot" id="sdot"></div>
+        <span id="slbl">離線模式</span>
+      </div>
+      <div class="odo-block">
+        <div class="odo-lbl">儀表里程</div>
+        <div class="odo-val" id="hodo">25,932</div>
         <div class="odo-unit">公里</div>
       </div>
-      <button class="theme-btn" id="theme-btn" title="切換主題" onclick="toggleTheme()">🌙</button>
+      <button class="theme-btn" id="theme-btn" onclick="toggleTheme()" title="切換深/淺色">🌙</button>
     </div>
   </div>
 </div>
 
-<!-- ── FILTER BAR ── -->
-<div style="position:relative;z-index:9;border-bottom:1px solid rgba(29,185,84,0.08);">
-  <div id="filter-bar">
-    <span class="filter-label">時段</span>
+<div class="fw">
+  <div class="fi">
+    <span class="fl">時段</span>
     <button class="pill active" data-period="all">全部</button>
     <button class="pill" data-period="2024">2024</button>
     <button class="pill" data-period="2025">2025</button>
     <button class="pill" data-period="2026">2026</button>
-    <span id="period-badge" style="margin-left:auto;font-family:'Space Mono',monospace;font-size:0.6rem;color:var(--td)">全部期間 · 183 筆</span>
+    <span class="pb" id="pb">全部期間 · — 筆</span>
   </div>
 </div>
 
-<!-- ╔══════════════════════════════════════════════╗ -->
-<!-- ║  MAIN APP                                    ║ -->
-<!-- ╚══════════════════════════════════════════════╝ -->
 <div id="app">
 
-  <!-- ── HERO KPI ROW ── -->
-  <div class="section-block">
-    <div class="sec-label" id="sec-kpi">核心指標</div>
-    <div class="kpi-grid" id="kpi-grid"></div>
+  <div class="sb">
+    <div class="sl">資料來源</div>
+    <div class="dp">
+      <div style="font-family:'Space Mono',monospace;font-size:.6rem;color:var(--tm);margin-bottom:.75rem;letter-spacing:.06em">
+        貼上 Google Apps Script 發布的 JSON 網址，儀表板將自動同步 Google Sheets 最新資料。
+        <a href="#" onclick="showGuide();return false;" style="color:var(--a);text-decoration:none;margin-left:.3rem">查看 GAS 設定教學 →</a>
+      </div>
+      <div class="dr">
+        <input class="di" type="url" id="sheetUrl" placeholder="https://script.google.com/macros/s/XXXX/exec"/>
+        <button class="db" onclick="saveAndSync()">連線並同步</button>
+        <button class="db sec" onclick="useLocal()">使用本機資料</button>
+      </div>
+      <div id="lsync" style="margin-top:.6rem;font-family:'Space Mono',monospace;font-size:.57rem;color:var(--td)">尚未連線 · 目前顯示本機備份資料（183 筆）</div>
+    </div>
   </div>
 
-  <!-- ── HERO METRICS ── -->
-  <div class="section-block">
-    <div class="sec-label">能耗概覽</div>
-    <div class="hero-row">
-      <!-- 里程大數字 -->
-      <div class="hero-card">
+  <div class="sb">
+    <div class="sl">核心指標</div>
+    <div class="kg" id="kgrid"></div>
+  </div>
+
+  <div class="sb">
+    <div class="sl">能耗概覽</div>
+    <div class="hr">
+      <div class="hc">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-          <div>
-            <div style="font-family:'Space Mono',monospace;font-size:0.58rem;color:var(--tm);letter-spacing:0.15em;margin-bottom:0.5rem">購入後總行駛里程</div>
-            <div class="hero-big-num" id="hero-km">25,882</div>
-            <div class="hero-big-label">km · since 2024/08/20</div>
-            <div style="margin-top:1rem;display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;">
-              <div style="background:var(--s2);border-radius:10px;padding:0.6rem 0.75rem;">
-                <div style="font-size:0.55rem;color:var(--tm);font-family:'Space Mono',monospace">平均電耗</div>
-                <div style="font-family:'Orbitron',monospace;font-size:1rem;font-weight:700;color:#1DB954;margin-top:2px" id="hero-eff">—</div>
-                <div style="font-size:0.55rem;color:var(--td);font-family:'Space Mono',monospace">km/kWh</div>
-              </div>
-              <div style="background:var(--s2);border-radius:10px;padding:0.6rem 0.75rem;">
-                <div style="font-size:0.55rem;color:var(--tm);font-family:'Space Mono',monospace">每公里費率</div>
-                <div style="font-family:'Orbitron',monospace;font-size:1rem;font-weight:700;color:#39E87A;margin-top:2px" id="hero-rate">—</div>
-                <div style="font-size:0.55rem;color:var(--td);font-family:'Space Mono',monospace">NT$/km</div>
-              </div>
+          <div style="flex:1">
+            <div style="font-family:'Space Mono',monospace;font-size:.56rem;color:var(--tm);letter-spacing:.14em;margin-bottom:.5rem">購入後總行駛里程</div>
+            <div class="hbn" id="hkm">—</div>
+            <div class="hbs">km · since 2024/08/20</div>
+            <div style="margin-top:1rem;display:grid;grid-template-columns:1fr 1fr;gap:.5rem;">
+              <div class="ms"><div class="msl">平均電耗</div><div class="msv" id="heff">—</div><div class="msu">km/kWh</div></div>
+              <div class="ms"><div class="msl">每公里費率</div><div class="msv" id="hrate" style="color:#34D399">—</div><div class="msu">NT$/km</div></div>
             </div>
           </div>
-          <!-- Odometer visual -->
-          <div style="display:flex;flex-direction:column;align-items:center;gap:4px;opacity:0.25;flex-shrink:0;">
-            <div style="font-family:'Orbitron',monospace;font-size:0.5rem;color:var(--tm);letter-spacing:0.2em">ODO</div>
-            <div style="width:3px;height:64px;background:linear-gradient(to bottom,#1DB954,transparent);border-radius:2px;"></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:4px;opacity:.15;flex-shrink:0;margin-left:.5rem">
+            <div style="font-family:'Orbitron',monospace;font-size:.44rem;color:var(--a);letter-spacing:.2em">ODO</div>
+            <div style="width:2px;height:60px;background:linear-gradient(to bottom,var(--a),transparent);border-radius:2px"></div>
           </div>
         </div>
       </div>
-
-      <!-- 超充 vs 慢充 Ring -->
-      <div class="hero-card" style="display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;">
-        <div class="ring-wrap">
-          <svg class="ring-svg" viewBox="0 0 100 100">
-            <circle class="ring-track" cx="50" cy="50" r="45"/>
-            <circle class="ring-fill-slow" cx="50" cy="50" r="45" id="ring-slow"/>
-            <circle class="ring-fill-super" cx="50" cy="50" r="45" id="ring-super"/>
+      <div class="hc" style="display:flex;align-items:center;gap:1.4rem;flex-wrap:wrap;">
+        <div class="rw">
+          <svg class="rs" viewBox="0 0 100 100">
+            <circle class="rt" cx="50" cy="50" r="45"/>
+            <circle class="rf-slow"  cx="50" cy="50" r="45" id="rslow"/>
+            <circle class="rf-super" cx="50" cy="50" r="45" id="rsuper"/>
           </svg>
-          <div class="ring-center">
-            <div class="ring-pct" id="ring-pct">—%</div>
-            <div class="ring-sublabel">超充</div>
-          </div>
+          <div class="rc"><div class="rp" id="rpct">—</div><div class="rl">超充佔比</div></div>
         </div>
         <div style="flex:1;min-width:130px;">
-          <div style="font-family:'Space Mono',monospace;font-size:0.58rem;color:var(--tm);margin-bottom:0.75rem;letter-spacing:0.08em">充電類型分析</div>
-          <div style="margin-bottom:0.6rem;">
+          <div style="font-family:'Space Mono',monospace;font-size:.56rem;color:var(--tm);margin-bottom:.7rem;letter-spacing:.07em">充電類型分析</div>
+          <div style="margin-bottom:.6rem;">
             <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
-              <span style="display:flex;align-items:center;gap:5px;font-size:0.68rem;color:var(--tx)">
-                <span style="width:8px;height:8px;border-radius:2px;background:#1DB954;display:inline-block"></span>超充
-              </span>
-              <span style="font-family:'Orbitron',monospace;font-size:0.8rem;font-weight:700;color:#1DB954" id="super-kwh-disp">—</span>
+              <span style="display:flex;align-items:center;gap:5px;font-size:.67rem;color:var(--tx)"><span style="width:8px;height:8px;border-radius:2px;background:var(--a);display:inline-block"></span>超充</span>
+              <span style="font-family:'Orbitron',monospace;font-size:.78rem;font-weight:700;color:var(--a)" id="suKwh">—</span>
             </div>
-            <div style="height:4px;background:rgba(29,185,84,0.1);border-radius:2px;overflow:hidden">
-              <div id="bar-super" style="height:100%;background:#1DB954;border-radius:2px;width:0;transition:width 1.5s cubic-bezier(0.4,0,0.2,1)"></div>
-            </div>
+            <div style="height:3px;background:rgba(56,189,248,.1);border-radius:2px;overflow:hidden"><div id="bsuper" style="height:100%;background:var(--a);border-radius:2px;width:0;transition:width 1.5s cubic-bezier(.4,0,.2,1)"></div></div>
           </div>
           <div>
             <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
-              <span style="display:flex;align-items:center;gap:5px;font-size:0.68rem;color:var(--tx)">
-                <span style="width:8px;height:8px;border-radius:2px;background:#38bdf8;display:inline-block"></span>慢充
-              </span>
-              <span style="font-family:'Orbitron',monospace;font-size:0.8rem;font-weight:700;color:#38bdf8" id="slow-kwh-disp">—</span>
+              <span style="display:flex;align-items:center;gap:5px;font-size:.67rem;color:var(--tx)"><span style="width:8px;height:8px;border-radius:2px;background:#34D399;display:inline-block"></span>慢充</span>
+              <span style="font-family:'Orbitron',monospace;font-size:.78rem;font-weight:700;color:#34D399" id="slKwh">—</span>
             </div>
-            <div style="height:4px;background:rgba(56,189,248,0.1);border-radius:2px;overflow:hidden">
-              <div id="bar-slow" style="height:100%;background:#38bdf8;border-radius:2px;width:0;transition:width 1.5s 0.15s cubic-bezier(0.4,0,0.2,1)"></div>
-            </div>
+            <div style="height:3px;background:rgba(52,211,153,.1);border-radius:2px;overflow:hidden"><div id="bslow" style="height:100%;background:#34D399;border-radius:2px;width:0;transition:width 1.5s .15s cubic-bezier(.4,0,.2,1)"></div></div>
           </div>
-          <div style="margin-top:0.85rem;padding-top:0.75rem;border-top:1px solid rgba(29,185,84,0.08);">
-            <div style="font-size:0.58rem;color:var(--td);font-family:'Space Mono',monospace">* 付費度數包含充電熱損耗與線損</div>
-          </div>
+          <div style="margin-top:.8rem;padding-top:.7rem;border-top:1px solid rgba(56,189,248,.07);font-size:.56rem;color:var(--td);font-family:'Space Mono',monospace">＊付費度數含熱損耗與線損</div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- ── CHARTS ── -->
-  <div class="section-block">
-    <div class="sec-label">月度分析</div>
-    <div class="chart-card" style="margin-bottom:0.75rem;">
-      <div class="chart-title">每月充電度數 vs 花費</div>
-      <div class="legend" id="monthly-legend"></div>
-      <div class="chart-wrap" style="height:260px"><canvas id="chartMonthly" role="img" aria-label="每月充電度數與花費長條圖">月度充電數據</canvas></div>
+  <div class="sb">
+    <div class="sl">月度分析</div>
+    <div class="cc" style="margin-bottom:.7rem;">
+      <div class="ct">每月充電度數 vs 花費</div>
+      <div class="legend" id="mleg"></div>
+      <div style="position:relative;height:260px"><canvas id="cM">月度圖</canvas></div>
     </div>
-    <div class="chart-grid-2">
-      <div class="chart-card">
-        <div class="chart-title">能耗趨勢（km/kWh）</div>
-        <div class="chart-wrap" style="height:200px"><canvas id="chartEff" role="img" aria-label="能耗趨勢折線圖">能耗趨勢</canvas></div>
-      </div>
-      <div class="chart-card">
-        <div class="chart-title">充電站廠牌分布</div>
-        <div class="chart-wrap" id="brand-wrap" style="height:200px"><canvas id="chartBrand" role="img" aria-label="廠牌分布橫條圖">廠牌分布</canvas></div>
-      </div>
+    <div class="cg2">
+      <div class="cc"><div class="ct">能耗趨勢（km/kWh）</div><div style="position:relative;height:200px"><canvas id="cE">能耗趨勢</canvas></div></div>
+      <div class="cc"><div class="ct">充電站廠牌分布</div><div id="bwrap" style="position:relative;height:200px"><canvas id="cB">廠牌分布</canvas></div></div>
     </div>
   </div>
 
-  <!-- ── MONTHLY TABLE ── -->
-  <div class="section-block">
-    <div class="sec-label">月度數據明細</div>
-    <div class="table-wrap">
-      <div class="table-head">
-        <span style="font-family:'Space Mono',monospace;font-size:0.6rem;color:var(--tm);letter-spacing:0.1em" id="table-label">月度總覽</span>
-      </div>
-      <div class="scroll-x">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>月份</th>
-              <th>次數</th>
-              <th>行駛 km</th>
-              <th>充電 kWh</th>
-              <th>超充費 NT$</th>
-              <th>停車費 NT$</th>
-              <th>總花費 NT$</th>
-              <th>NT$/km</th>
-              <th>km/kWh</th>
-            </tr>
-          </thead>
+  <div class="sb">
+    <div class="sl">月度數據明細</div>
+    <div class="tw">
+      <div class="th" style="font-family:'Space Mono',monospace;font-size:.58rem;color:var(--tm);letter-spacing:.09em" id="tlbl">月度總覽</div>
+      <div class="sx">
+        <table class="dt">
+          <thead><tr>
+            <th>月份</th><th>次數</th><th>行駛 km</th><th>充電 kWh</th>
+            <th>超充費 NT$</th><th>停車費 NT$</th><th>總花費 NT$</th>
+            <th>NT$/km</th><th>km/kWh</th>
+          </tr></thead>
           <tbody id="tbody"></tbody>
         </table>
       </div>
     </div>
   </div>
 
-  <!-- ── STATION GRID ── -->
-  <div class="section-block">
-    <div class="sec-label">常用充電站排名</div>
-    <div class="station-grid" id="station-grid"></div>
+  <div class="sb">
+    <div class="sl">常用充電站排名</div>
+    <div class="sg" id="sgrid"></div>
   </div>
 
-</div><!-- /#app -->
+</div>
 
-<footer>
-  Tesla Model Y RWD · EBC-0289 · 2024/08 起算 · 資料共 183 筆 · 最後更新 2026/05/01
-</footer>
+<footer>Tesla Model Y RWD · EBC-0289 · 2024/08 起算 · <span id="fcnt">—</span> 筆充電記錄</footer>
 
-<!-- ╔══════════════════════════════════════════════╗ -->
-<!-- ║  DATA + LOGIC                                ║ -->
-<!-- ╚══════════════════════════════════════════════╝ -->
 <script>
-// ═══════════════════════════════════════════════════════════════════
-// RAW DATA — EBC-0289 充電記錄
-// 欄位: [日期, 年, 月, 廠牌, 類型, 站名, 實際kWh, 費率, 總費, 充電費, 停車費, 上次里程, 當前里程]
-// ═══════════════════════════════════════════════════════════════════
-const RAW = [
-  ["2024/8/20",2024,8,"UPower","超充","內湖行忠站",16.19,9.90,160.28,160,0,null,null],
-  ["2024/8/21",2024,8,"Tesla","超充","台大綜合體育館",39,8.00,352.00,312,40,null,null],
-  ["2024/8/24",2024,8,"Tesla","超充","桃園八德",33,8.00,264.00,264,0,null,null],
-  ["2024/8/27",2024,8,"UPower","超充","中和建八站",40.062,9.90,396.61,397,0,null,null],
-  ["2024/8/30",2024,8,"UPower","超充","中和建八站",26.17,9.90,259.08,259,0,null,492],
-  ["2024/9/5",2024,9,"公有停車場","慢充","西松高中",7,0,45.00,0,45,146,639],
-  ["2024/9/6",2024,9,"UPower","超充","中和建八站",47.959,9.90,474.79,475,0,44,683],
-  ["2024/9/11",2024,9,"UPower","超充","中和建八站",37.472,9.90,370.97,371,0,225,907],
-  ["2024/9/12",2024,9,"公有停車場","慢充","土城員和",20,0,70.00,0,70,32,939],
-  ["2024/9/13",2024,9,"公有停車場","慢充","土城員和",6,0,15.00,0,15,66,1004],
-  ["2024/9/17",2024,9,"公有停車場","慢充","土城員和",26,0,80.00,0,80,99,1103],
-  ["2024/9/20",2024,9,"公有停車場","慢充","土城中央公園",28,0,120.00,0,120,157,1269],
-  ["2024/9/24",2024,9,"公有停車場","慢充","土城員和",23,0,80.00,0,80,112,1373],
-  ["2024/9/25",2024,9,"公有停車場","慢充","土城員和",5,0,20.00,0,20,24,1398],
-  ["2024/9/27",2024,9,"公有停車場","慢充","土城員和",15,0,50.00,0,50,85,1482],
-  ["2024/9/29",2024,9,"Iparking","超充","國一西螺",14.4,9.20,132.48,132,0,253,1735],
-  ["2024/9/29",2024,9,"Tesla","超充","嘉義-西區",40,8.00,360.00,320,40,55,1790],
-  ["2024/9/29",2024,9,"Iparking","超充","國三關西",22.6,10.00,226.00,226,0,200,1991],
-  ["2024/9/30",2024,9,"公有停車場","慢充","土城員和",34,0,105.00,0,105,106,2096],
-  ["2024/10/4",2024,10,"公有停車場","慢充","土城員和",18,0,60.00,0,60,88,2184],
-  ["2024/10/9",2024,10,"UPower","超充","中和建八站",7.397,6.90,51.04,51,0,139,2323],
-  ["2024/10/9",2024,10,"UPower","超充","中和建八站",18.805,6.90,129.75,130,0,0,2323],
-  ["2024/10/11",2024,10,"公有停車場","慢充","永和網溪",13,0,60.00,0,60,76,2400],
-  ["2024/10/12",2024,10,"公有停車場","慢充","土城員和",14,0,50.00,0,50,75,2474],
-  ["2024/10/16",2024,10,"公有停車場","慢充","土城員和",12,0,40.00,0,40,64,2539],
-  ["2024/10/19",2024,10,"UPower","超充","中和建八站",18.88,6.90,130.27,130,0,99,2638],
-  ["2024/10/20",2024,10,"公有停車場","慢充","永和頂溪國小",8,0,45.00,0,45,82,2720],
-  ["2024/10/20",2024,10,"公有停車場","慢充","土城員和",6,0,20.00,0,20,19,2739],
-  ["2024/10/21",2024,10,"公有停車場","慢充","土城員和",8,0,30.00,0,30,46,2785],
-  ["2024/10/22",2024,10,"公有停車場","慢充","中和錦和公園",4,0,0.00,0,0,21,2806],
-  ["2024/10/24",2024,10,"公有停車場","慢充","中和錦和公園",14,0,0.00,0,0,71,2877],
-  ["2024/10/28",2024,10,"公有停車場","慢充","中和錦和公園",19,0,0.00,0,0,104,2981],
-  ["2024/10/30",2024,10,"公有停車場","慢充","中和錦和公園",7,0,0.00,0,0,48,3029],
-  ["2024/11/1",2024,11,"公有停車場","慢充","中和錦和公園",9,0,0.00,0,0,56,3084],
-  ["2024/11/4",2024,11,"公有停車場","慢充","中和錦和公園",15,0,0.00,0,0,93,3177],
-  ["2024/11/7",2024,11,"公有停車場","慢充","土城員和",12,0,40.00,0,40,107,3284],
-  ["2024/11/8",2024,11,"公有停車場","慢充","中和錦和公園",12,0,0.00,0,0,54,3338],
-  ["2024/11/10",2024,11,"Tesla","超充","彰化-埔心",38,8.00,344.00,304,40,256,3594],
-  ["2024/11/11",2024,11,"公有停車場","慢充","中和錦和公園",38,0,0.00,0,0,188,3782],
-  ["2024/11/14",2024,11,"公有停車場","慢充","中和錦和公園",18,0,0.00,0,0,111,3893],
-  ["2024/11/19",2024,11,"公有停車場","慢充","土城員和",19,0,60.00,0,60,118,4011],
-  ["2024/11/22",2024,11,"公有停車場","慢充","土城員和",17,0,60.00,0,60,104,4115],
-  ["2024/11/27",2024,11,"公有停車場","慢充","土城員和",25.018,0,60.00,0,60,137,4252],
-  ["2024/11/30",2024,11,"公有停車場","慢充","七星公園",8,1.88,60.00,15,45,74,4326],
-  ["2024/12/1",2024,12,"公有停車場","慢充","土城員和",22.362,0,55.00,0,55,88,4415],
-  ["2024/12/7",2024,12,"公有停車場","慢充","土城金城",40,0,140.00,0,140,263,4678],
-  ["2024/12/13",2024,12,"公有停車場","慢充","土城員和",17.619,0,50.00,0,50,139,4817],
-  ["2024/12/18",2024,12,"UPower","超充","中和建八站",38.518,6.90,266.00,266,0,166,4983],
-  ["2024/12/22",2024,12,"公有停車場","慢充","七星公園",8,0,45.00,0,45,128,5111],
-  ["2024/12/25",2024,12,"UPower","超充","中和建八站",37.307,6.90,257.42,257,0,128,5239],
-  ["2024/12/26",2024,12,"公有停車場","慢充","土城員和",11.923,0,40.00,0,40,71,5310],
-  ["2024/12/28",2024,12,"公有停車場","慢充","七星公園",8,0,60.00,0,60,56,5366],
-  ["2025/1/3",2025,1,"UPower","超充","中和建八站",42.945,6.90,296.32,296,0,219,5585],
-  ["2025/1/4",2025,1,"公有停車場","慢充","七星公園",7,0,45.00,0,45,82,5667],
-  ["2025/1/10",2025,1,"UPower","超充","中和建八站",38.43,6.90,265.17,265,0,178,5845],
-  ["2025/1/13",2025,1,"UPower","超充","中和建八站",34.973,6.90,241.31,241,0,196,6041],
-  ["2025/1/17",2025,1,"UPower","超充","中和建八站",27.334,6.90,188.60,189,0,156,6196],
-  ["2025/1/23",2025,1,"UPower","超充","中和建八站",35.934,6.90,247.94,248,0,209,6406],
-  ["2025/1/29",2025,1,"UPower","超充","中和建八站",31.631,8.50,268.86,269,0,172,6571],
-  ["2025/2/6",2025,2,"UPower","超充","中和建八站",39.05,6.90,269.45,269,0,156,6734],
-  ["2025/2/11",2025,2,"UPower","超充","中和建八站",38.653,6.90,266.71,267,0,196,6930],
-  ["2025/2/14",2025,2,"UPower","超充","中和建八站",21.789,6.90,150.34,150,0,107,7037],
-  ["2025/2/18",2025,2,"UPower","超充","中和建八站",40.242,6.90,277.67,278,0,216,7253],
-  ["2025/2/21",2025,2,"UPower","超充","中和建八站",37.771,6.90,260.62,261,0,228,7481],
-  ["2025/2/25",2025,2,"UPower","超充","中和建八站",33.214,6.90,229.18,229,0,177,7647],
-  ["2025/3/5",2025,3,"UPower","超充","中和建八站",41.2,6.90,284.28,284,0,241,7898],
-  ["2025/3/11",2025,3,"UPower","超充","中和建八站",43.957,6.90,303.30,303,0,259,8158],
-  ["2025/3/16",2025,3,"UPower","超充","中和建八站",27.009,8.50,229.58,230,0,265,8423],
-  ["2025/3/17",2025,3,"UPower","超充","中和建八站",30.284,6.90,208.96,209,0,46,8469],
-  ["2025/3/20",2025,3,"UPower","超充","中和建八站",31.489,6.90,217.27,217,0,179,8648],
-  ["2025/3/24",2025,3,"UPower","超充","中和建八站",33.309,6.90,229.83,230,0,207,8855],
-  ["2025/3/31",2025,3,"UPower","超充","中和建八站",43.068,6.90,297.17,297,0,231,9086],
-  ["2025/4/5",2025,4,"EVOASIS","超充","台大公館平面",32.56,6.60,254.90,215,40,176,9263],
-  ["2025/4/9",2025,4,"UPower","超充","中和建八站",37.303,6.90,257.39,257,0,212,9475],
-  ["2025/4/14",2025,4,"UPower","超充","中和建八站",43.379,6.90,299.32,299,0,248,9723],
-  ["2025/4/18",2025,4,"UPower","超充","中和建八站",38.365,6.90,264.72,265,0,230,9953],
-  ["2025/4/21",2025,4,"公有停車場","慢充","海光公園",6.715,0,20.00,0,20,160,10113],
-  ["2025/4/22",2025,4,"UPower","超充","中和建八站",32.5,6.90,224.25,224,0,82,10195],
-  ["2025/4/25",2025,4,"UPower","超充","中和建八站",29.451,6.90,203.21,203,0,176,10371],
-  ["2025/4/30",2025,4,"UPower","超充","中和建八站",34.902,6.90,240.82,241,0,209,10581],
-  ["2025/5/5",2025,5,"UPower","超充","中和建八站",35.819,6.90,247.15,247,0,204,10784],
-  ["2025/5/8",2025,5,"UPower","超充","中和建八站",22.132,6.90,152.71,153,0,182,10966],
-  ["2025/5/9",2025,5,"UPower","超充","中和建八站",21.267,6.90,146.74,147,0,62,11028],
-  ["2025/5/12",2025,5,"UPower","超充","中和建八站",36.661,6.90,252.96,253,0,203,11232],
-  ["2025/5/16",2025,5,"UPower","超充","中和建八站",30.305,6.90,209.10,209,0,185,11417],
-  ["2025/5/20",2025,5,"UPower","超充","中和建八站",31.227,6.90,215.47,215,0,177,11594],
-  ["2025/5/23",2025,5,"UPower","超充","中和建八站",32.108,6.90,221.55,222,0,186,11780],
-  ["2025/5/28",2025,5,"UPower","超充","中和建八站",37,6.90,255.30,255,0,220,12000],
-  ["2025/6/3",2025,6,"UPower","超充","中和建八站",39.141,6.90,270.07,270,0,227,12227],
-  ["2025/6/6",2025,6,"UPower","超充","中和建八站",31.849,6.90,219.76,220,0,187,12413],
-  ["2025/6/11",2025,6,"UPower","超充","中和建八站",33.687,6.90,232.44,232,0,198,12612],
-  ["2025/6/13",2025,6,"UPower","超充","中和建八站",34.364,6.90,237.11,237,0,196,12808],
-  ["2025/6/17",2025,6,"UPower","超充","中和建八站",36.681,6.90,253.10,253,0,204,13012],
-  ["2025/6/18",2025,6,"Tesla","慢充","土城日月光",11,0,30.00,0,30,71,13083],
-  ["2025/6/19",2025,6,"Tesla","慢充","土城日月光",9,0,0.00,0,0,64,13147],
-  ["2025/6/23",2025,6,"Tesla","慢充","土城日月光",21,0,0.00,0,0,131,13278],
-  ["2025/6/24",2025,6,"Tesla","慢充","土城日月光",9,0,0.00,0,0,67,13345],
-  ["2025/6/26",2025,6,"Tesla","慢充","土城日月光",17,0,0.00,0,0,124,13468],
-  ["2025/7/1",2025,7,"UPower","超充","中和建八站",39.345,6.90,271.48,271,0,209,13677],
-  ["2025/7/4",2025,7,"Tesla","慢充","土城日月光",20,0,15.00,0,15,101,13779],
-  ["2025/7/7",2025,7,"Tesla","慢充","土城日月光",19,0,0.00,0,0,99,13877],
-  ["2025/7/8",2025,7,"Tesla","慢充","土城日月光",9,0,0.00,0,0,62,13939],
-  ["2025/7/9",2025,7,"Tesla","慢充","土城日月光",4,0,0.00,0,0,24,13963],
-  ["2025/7/14",2025,7,"Tesla","慢充","土城日月光",18,0,0.00,0,0,140,14103],
-  ["2025/7/16",2025,7,"Tesla","慢充","土城日月光",18,0,0.00,0,0,90,14193],
-  ["2025/7/17",2025,7,"Tesla","慢充","土城日月光",7,0,0.00,0,0,24,14217],
-  ["2025/7/20",2025,7,"Tesla","慢充","土城日月光",11,0,0.00,0,0,62,14279],
-  ["2025/7/22",2025,7,"Tesla","慢充","土城日月光",13,0,0.00,0,0,68,14347],
-  ["2025/7/24",2025,7,"Tesla","慢充","土城日月光",18,0,0.00,0,0,132,14479],
-  ["2025/7/28",2025,7,"Tesla","慢充","土城日月光",17,0,0.00,0,0,83,14563],
-  ["2025/7/31",2025,7,"Tesla","慢充","土城日月光",18,0,0.00,0,0,144,14707],
-  ["2025/8/5",2025,8,"UPower","超充","中和建八站",40.266,6.90,277.84,278,0,170,14877],
-  ["2025/8/7",2025,8,"Tesla","慢充","土城日月光",14,0,0.00,0,0,71,14948],
-  ["2025/8/8",2025,8,"Tesla","慢充","土城日月光",10,0,0.00,0,0,62,15009],
-  ["2025/8/11",2025,8,"Tesla","慢充","土城日月光",19,0,0.00,0,0,113,15122],
-  ["2025/8/15",2025,8,"UPower","超充","中和建八站",40.075,6.90,276.52,277,0,192,15314],
-  ["2025/8/18",2025,8,"Tesla","慢充","土城日月光",12,0,0.00,0,0,152,15466],
-  ["2025/8/19",2025,8,"Tesla","慢充","土城日月光",19,0,0.00,0,0,60,15526],
-  ["2025/8/20",2025,8,"Tesla","慢充","土城日月光",11,0,0.00,0,0,3,15530],
-  ["2025/8/22",2025,8,"Tesla","慢充","土城日月光",12,0,0.00,0,0,70,15599],
-  ["2025/8/25",2025,8,"Tesla","慢充","土城日月光",19,0,0.00,0,0,126,15726],
-  ["2025/8/26",2025,8,"Tesla","慢充","土城日月光",16,0,0.00,0,0,72,15798],
-  ["2025/8/28",2025,8,"Tesla","慢充","土城日月光",19,0,0.00,0,0,105,15902],
-  ["2025/9/2",2025,9,"Tesla","慢充","土城日月光",12,0,0.00,0,0,208,16111],
-  ["2025/9/4",2025,9,"Tesla","慢充","土城日月光",12,0,0.00,0,0,89,16200],
-  ["2025/9/7",2025,9,"Tesla","超充","土城日月光",34,8.00,272.00,272,0,121,16321],
-  ["2025/9/8",2025,9,"Tesla","慢充","土城日月光",13,0,0.00,0,0,3,16325],
-  ["2025/9/16",2025,9,"Tesla","慢充","土城日月光",12,0,0.00,0,0,240,16564],
-  ["2025/9/16",2025,9,"Tesla","慢充","土城日月光",12,0,0.00,0,0,1,16565],
-  ["2025/9/22",2025,9,"EVOASIS","超充","央北綠洲",50.12,5.80,290.70,291,0,205,16770],
-  ["2025/9/23",2025,9,"Tesla","慢充","土城日月光",8,0,0.00,0,0,54,16825],
-  ["2025/9/28",2025,9,"EVOASIS","超充","央北綠洲",33.3,5.80,193.14,193,0,206,17030],
-  ["2025/10/5",2025,10,"Tesla","慢充","土城日月光",2,0,0.00,0,0,214,17244],
-  ["2025/10/6",2025,10,"EVALUE","超充","桃園東勇站",45.209,6.90,311.94,312,0,26,17270],
-  ["2025/10/14",2025,10,"Tesla","超充","土城日月光",21,9.00,189.00,189,0,260,17530],
-  ["2025/10/15",2025,10,"UPower","超充","中和建八站",27.279,6.90,188.23,188,0,78,17608],
-  ["2025/10/20",2025,10,"UPower","超充","中和建八站",31.033,6.90,214.13,214,0,174,17783],
-  ["2025/10/24",2025,10,"EVbar","超充","淞和土城站",30.21,6.02,181.86,182,0,129,17912],
-  ["2025/10/30",2025,10,"EVbar","超充","淞和土城站",40.123,5.38,216.00,216,0,235,18146],
-  ["2025/11/7",2025,11,"EVbar","超充","淞和土城站",39.222,6.00,235.33,235,0,238,18384],
-  ["2025/11/9",2025,11,"UPower","超充","員林大道站",44.089,8.50,374.76,375,0,223,18607],
-  ["2025/11/9",2025,11,"EVbar","超充","淞和土城站",42.669,6.49,276.92,277,0,210,18816],
-  ["2025/11/10",2025,11,"Tesla","慢充","土城日月光",1,0,0.00,0,0,45,18861],
-  ["2025/11/14",2025,11,"EVbar","超充","淞和土城站",30.251,6.02,182.11,182,0,137,18998],
-  ["2025/11/20",2025,11,"EVbar","超充","淞和土城站",37.54,6.00,225.24,225,0,233,19231],
-  ["2025/11/26",2025,11,"UPower","超充","中和建八站",39.868,6.90,275.09,275,0,241,19471],
-  ["2025/11/30",2025,11,"EVbar","慢充","淞和土城站",3.626,6.50,22.57,23,0,196,19667],
-  ["2025/11/30",2025,11,"EVbar","超充","淞和土城站",28.652,6.50,186.24,186,0,0,19667],
-  ["2025/12/6",2025,12,"EVbar","超充","淞和土城站",47.654,6.50,309.75,310,0,289,19956],
-  ["2025/12/10",2025,12,"EVbar","超充","淞和土城站",31.753,6.00,188.52,191,0,197,20152],
-  ["2025/12/12",2025,12,"EVbar","超充","淞和土城站",24,6.00,144.00,144,0,144,20297],
-  ["2025/12/13",2025,12,"EVbar","超充","淞和土城站",8.975,6.50,58.34,58,0,52,20349],
-  ["2025/12/13",2025,12,"UPower","超充","嘉義交流道站",42.427,8.50,360.63,361,0,256,20605],
-  ["2025/12/14",2025,12,"EVOASIS","超充","南投休息站",32.99,10.00,329.90,330,0,216,20820],
-  ["2025/12/14",2025,12,"EVbar","超充","淞和土城站",41.149,6.50,267.47,267,0,193,21013],
-  ["2025/12/20",2025,12,"EVbar","超充","淞和土城站",44.26,6.50,287.69,288,0,264,21278],
-  ["2025/12/25",2025,12,"EVbar","超充","淞和土城站",15.788,6.50,100.62,101,0,176,21454],
-  ["2025/12/25",2025,12,"EVbar","超充","淞和土城站",11.602,6.50,75.41,75,0,0,21454],
-  ["2025/12/27",2025,12,"EVbar","超充","淞和土城站",32.34,6.50,210.21,210,0,188,21642],
-  ["2026/1/3",2026,1,"EVbar","超充","淞和土城站",32.904,6.50,213.88,214,0,181,21824],
-  ["2026/1/4",2026,1,"EVbar","超充","淞和土城站",20.208,6.50,131.35,131,0,113,21936],
-  ["2026/1/8",2026,1,"EVbar","超充","淞和土城站",47.498,6.50,308.74,309,0,273,22209],
-  ["2026/1/23",2026,1,"UPower","超充","中和建八站",43.578,6.90,300.69,301,0,233,22442],
-  ["2026/2/1",2026,2,"EVOASIS","超充","八德豐田路",32,5.80,185.60,186,0,151,22594],
-  ["2026/2/16",2026,2,"EVbar","超充","淞和土城站",21.253,6.50,137.14,137,0,120,22713],
-  ["2026/2/26",2026,2,"EVbar","超充","淞和土城站",40.03,6.00,240.18,240,0,207,22920],
-  ["2026/2/28",2026,2,"EVbar","超充","淞和土城站",14.671,6.50,95.36,95,0,144,23064],
-  ["2026/3/1",2026,3,"EVbar","超充","淞和土城站",49.04,6.50,318.76,319,0,231,23295],
-  ["2026/3/5",2026,3,"EVbar","超充","淞和土城站",28.71,6.00,170.26,170,0,181,23476],
-  ["2026/3/12",2026,3,"EVbar","超充","淞和土城站",38.586,6.00,230.52,231,0,233,23709],
-  ["2026/3/14",2026,3,"EVbar","超充","淞和土城站",18.833,6.50,122.41,122,0,103,23812],
-  ["2026/3/16",2026,3,"EVbar","超充","淞和土城站",31.603,6.00,189.62,190,0,152,23964],
-  ["2026/3/20",2026,3,"EVbar","超充","淞和土城站",22.072,6.00,132.43,132,0,137,24101],
-  ["2026/3/21",2026,3,"EVbar","超充","淞和土城站",17.244,6.50,112.09,112,0,104,24205],
-  ["2026/3/22",2026,3,"EVOASIS","超充","豐原交流道",20.6,8.50,175.10,175,0,141,24345],
-  ["2026/3/23",2026,3,"EVbar","超充","淞和土城站",32.319,6.00,192.91,193,0,130,24476],
-  ["2026/3/28",2026,3,"EVbar","超充","淞和土城站",34.576,6.50,222.74,223,0,224,24699],
-  ["2026/4/2",2026,4,"EVbar","超充","淞和土城站",32.201,6.00,192.21,192,0,273,24972],
-  ["2026/4/3",2026,4,"EVbar","超充","淞和土城站",22.297,6.50,144.93,145,0,67,25039],
-  ["2026/4/10",2026,4,"EVbar","超充","淞和土城站",32.62,6.00,194.72,195,0,202,25241],
-  ["2026/4/17",2026,4,"EVbar","超充","淞和土城站",29.892,6.00,178.35,178,0,180,25422],
-  ["2026/4/25",2026,4,"EVbar","超充","淞和土城站",45.936,6.50,298.58,299,0,280,25701],
-  ["2026/5/1",2026,5,"EVbar","超充","淞和土城站",35.899,6.50,232.34,232,0,230,25932],
+/* ─────────────────────────────────────────────
+   架構決策：Google Apps Script (GAS) Web App
+   理由：零費用 / 無需 OAuth / 可輸出純 JSON
+   GAS Code.gs 範本（貼到 Apps Script 後部署為
+   「任何人可存取」的網路應用程式即完成）：
+
+   function doGet(e) {
+     const sheet = SpreadsheetApp
+       .getActiveSpreadsheet()
+       .getSheetByName("充電記錄"); // 改為你的工作表名稱
+     const rows = sheet.getDataRange().getValues();
+     const hdr  = rows[0];
+     const data = rows.slice(1).map(r => {
+       const o={}; hdr.forEach((h,i)=>o[h]=r[i]); return o;
+     });
+     return ContentService
+       .createTextOutput(JSON.stringify({ok:true,count:data.length,data}))
+       .setMimeType(ContentService.MimeType.JSON);
+   }
+───────────────────────────────────────────── */
+
+const PURCHASE_KM=50, LATEST_KM=25932, LS_KEY='tesla_gas_url';
+
+const LOCAL=[
+["2024/8/20",2024,8,"UPower","超充","內湖行忠站",16.19,9.90,160.28,160,0,null,null],
+["2024/8/21",2024,8,"Tesla","超充","台大綜合體育館",39,8.00,352.00,312,40,null,null],
+["2024/8/24",2024,8,"Tesla","超充","桃園八德",33,8.00,264.00,264,0,null,null],
+["2024/8/27",2024,8,"UPower","超充","中和建八站",40.062,9.90,396.61,397,0,null,null],
+["2024/8/30",2024,8,"UPower","超充","中和建八站",26.17,9.90,259.08,259,0,null,492],
+["2024/9/5",2024,9,"公有停車場","慢充","西松高中",7,0,45,0,45,146,639],
+["2024/9/6",2024,9,"UPower","超充","中和建八站",47.959,9.90,474.79,475,0,44,683],
+["2024/9/11",2024,9,"UPower","超充","中和建八站",37.472,9.90,370.97,371,0,225,907],
+["2024/9/12",2024,9,"公有停車場","慢充","土城員和",20,0,70,0,70,32,939],
+["2024/9/13",2024,9,"公有停車場","慢充","土城員和",6,0,15,0,15,66,1004],
+["2024/9/17",2024,9,"公有停車場","慢充","土城員和",26,0,80,0,80,99,1103],
+["2024/9/20",2024,9,"公有停車場","慢充","土城中央公園",28,0,120,0,120,157,1269],
+["2024/9/24",2024,9,"公有停車場","慢充","土城員和",23,0,80,0,80,112,1373],
+["2024/9/25",2024,9,"公有停車場","慢充","土城員和",5,0,20,0,20,24,1398],
+["2024/9/27",2024,9,"公有停車場","慢充","土城員和",15,0,50,0,50,85,1482],
+["2024/9/29",2024,9,"Iparking","超充","國一西螺",14.4,9.20,132.48,132,0,253,1735],
+["2024/9/29",2024,9,"Tesla","超充","嘉義-西區",40,8.00,360,320,40,55,1790],
+["2024/9/29",2024,9,"Iparking","超充","國三關西",22.6,10.00,226,226,0,200,1991],
+["2024/9/30",2024,9,"公有停車場","慢充","土城員和",34,0,105,0,105,106,2096],
+["2024/10/4",2024,10,"公有停車場","慢充","土城員和",18,0,60,0,60,88,2184],
+["2024/10/9",2024,10,"UPower","超充","中和建八站",7.397,6.90,51.04,51,0,139,2323],
+["2024/10/9",2024,10,"UPower","超充","中和建八站",18.805,6.90,129.75,130,0,0,2323],
+["2024/10/11",2024,10,"公有停車場","慢充","永和網溪",13,0,60,0,60,76,2400],
+["2024/10/12",2024,10,"公有停車場","慢充","土城員和",14,0,50,0,50,75,2474],
+["2024/10/16",2024,10,"公有停車場","慢充","土城員和",12,0,40,0,40,64,2539],
+["2024/10/19",2024,10,"UPower","超充","中和建八站",18.88,6.90,130.27,130,0,99,2638],
+["2024/10/20",2024,10,"公有停車場","慢充","永和頂溪國小",8,0,45,0,45,82,2720],
+["2024/10/20",2024,10,"公有停車場","慢充","土城員和",6,0,20,0,20,19,2739],
+["2024/10/21",2024,10,"公有停車場","慢充","土城員和",8,0,30,0,30,46,2785],
+["2024/10/22",2024,10,"公有停車場","慢充","中和錦和公園",4,0,0,0,0,21,2806],
+["2024/10/24",2024,10,"公有停車場","慢充","中和錦和公園",14,0,0,0,0,71,2877],
+["2024/10/28",2024,10,"公有停車場","慢充","中和錦和公園",19,0,0,0,0,104,2981],
+["2024/10/30",2024,10,"公有停車場","慢充","中和錦和公園",7,0,0,0,0,48,3029],
+["2024/11/1",2024,11,"公有停車場","慢充","中和錦和公園",9,0,0,0,0,56,3084],
+["2024/11/4",2024,11,"公有停車場","慢充","中和錦和公園",15,0,0,0,0,93,3177],
+["2024/11/7",2024,11,"公有停車場","慢充","土城員和",12,0,40,0,40,107,3284],
+["2024/11/8",2024,11,"公有停車場","慢充","中和錦和公園",12,0,0,0,0,54,3338],
+["2024/11/10",2024,11,"Tesla","超充","彰化-埔心",38,8.00,344,304,40,256,3594],
+["2024/11/11",2024,11,"公有停車場","慢充","中和錦和公園",38,0,0,0,0,188,3782],
+["2024/11/14",2024,11,"公有停車場","慢充","中和錦和公園",18,0,0,0,0,111,3893],
+["2024/11/19",2024,11,"公有停車場","慢充","土城員和",19,0,60,0,60,118,4011],
+["2024/11/22",2024,11,"公有停車場","慢充","土城員和",17,0,60,0,60,104,4115],
+["2024/11/27",2024,11,"公有停車場","慢充","土城員和",25.018,0,60,0,60,137,4252],
+["2024/11/30",2024,11,"公有停車場","慢充","七星公園",8,1.88,60,15,45,74,4326],
+["2024/12/1",2024,12,"公有停車場","慢充","土城員和",22.362,0,55,0,55,88,4415],
+["2024/12/7",2024,12,"公有停車場","慢充","土城金城",40,0,140,0,140,263,4678],
+["2024/12/13",2024,12,"公有停車場","慢充","土城員和",17.619,0,50,0,50,139,4817],
+["2024/12/18",2024,12,"UPower","超充","中和建八站",38.518,6.90,266,266,0,166,4983],
+["2024/12/22",2024,12,"公有停車場","慢充","七星公園",8,0,45,0,45,128,5111],
+["2024/12/25",2024,12,"UPower","超充","中和建八站",37.307,6.90,257.42,257,0,128,5239],
+["2024/12/26",2024,12,"公有停車場","慢充","土城員和",11.923,0,40,0,40,71,5310],
+["2024/12/28",2024,12,"公有停車場","慢充","七星公園",8,0,60,0,60,56,5366],
+["2025/1/3",2025,1,"UPower","超充","中和建八站",42.945,6.90,296.32,296,0,219,5585],
+["2025/1/4",2025,1,"公有停車場","慢充","七星公園",7,0,45,0,45,82,5667],
+["2025/1/10",2025,1,"UPower","超充","中和建八站",38.43,6.90,265.17,265,0,178,5845],
+["2025/1/13",2025,1,"UPower","超充","中和建八站",34.973,6.90,241.31,241,0,196,6041],
+["2025/1/17",2025,1,"UPower","超充","中和建八站",27.334,6.90,188.60,189,0,156,6196],
+["2025/1/23",2025,1,"UPower","超充","中和建八站",35.934,6.90,247.94,248,0,209,6406],
+["2025/1/29",2025,1,"UPower","超充","中和建八站",31.631,8.50,268.86,269,0,172,6571],
+["2025/2/6",2025,2,"UPower","超充","中和建八站",39.05,6.90,269.45,269,0,156,6734],
+["2025/2/11",2025,2,"UPower","超充","中和建八站",38.653,6.90,266.71,267,0,196,6930],
+["2025/2/14",2025,2,"UPower","超充","中和建八站",21.789,6.90,150.34,150,0,107,7037],
+["2025/2/18",2025,2,"UPower","超充","中和建八站",40.242,6.90,277.67,278,0,216,7253],
+["2025/2/21",2025,2,"UPower","超充","中和建八站",37.771,6.90,260.62,261,0,228,7481],
+["2025/2/25",2025,2,"UPower","超充","中和建八站",33.214,6.90,229.18,229,0,177,7647],
+["2025/3/5",2025,3,"UPower","超充","中和建八站",41.2,6.90,284.28,284,0,241,7898],
+["2025/3/11",2025,3,"UPower","超充","中和建八站",43.957,6.90,303.30,303,0,259,8158],
+["2025/3/16",2025,3,"UPower","超充","中和建八站",27.009,8.50,229.58,230,0,265,8423],
+["2025/3/17",2025,3,"UPower","超充","中和建八站",30.284,6.90,208.96,209,0,46,8469],
+["2025/3/20",2025,3,"UPower","超充","中和建八站",31.489,6.90,217.27,217,0,179,8648],
+["2025/3/24",2025,3,"UPower","超充","中和建八站",33.309,6.90,229.83,230,0,207,8855],
+["2025/3/31",2025,3,"UPower","超充","中和建八站",43.068,6.90,297.17,297,0,231,9086],
+["2025/4/5",2025,4,"EVOASIS","超充","台大公館平面",32.56,6.60,254.90,215,40,176,9263],
+["2025/4/9",2025,4,"UPower","超充","中和建八站",37.303,6.90,257.39,257,0,212,9475],
+["2025/4/14",2025,4,"UPower","超充","中和建八站",43.379,6.90,299.32,299,0,248,9723],
+["2025/4/18",2025,4,"UPower","超充","中和建八站",38.365,6.90,264.72,265,0,230,9953],
+["2025/4/21",2025,4,"公有停車場","慢充","海光公園",6.715,0,20,0,20,160,10113],
+["2025/4/22",2025,4,"UPower","超充","中和建八站",32.5,6.90,224.25,224,0,82,10195],
+["2025/4/25",2025,4,"UPower","超充","中和建八站",29.451,6.90,203.21,203,0,176,10371],
+["2025/4/30",2025,4,"UPower","超充","中和建八站",34.902,6.90,240.82,241,0,209,10581],
+["2025/5/5",2025,5,"UPower","超充","中和建八站",35.819,6.90,247.15,247,0,204,10784],
+["2025/5/8",2025,5,"UPower","超充","中和建八站",22.132,6.90,152.71,153,0,182,10966],
+["2025/5/9",2025,5,"UPower","超充","中和建八站",21.267,6.90,146.74,147,0,62,11028],
+["2025/5/12",2025,5,"UPower","超充","中和建八站",36.661,6.90,252.96,253,0,203,11232],
+["2025/5/16",2025,5,"UPower","超充","中和建八站",30.305,6.90,209.10,209,0,185,11417],
+["2025/5/20",2025,5,"UPower","超充","中和建八站",31.227,6.90,215.47,215,0,177,11594],
+["2025/5/23",2025,5,"UPower","超充","中和建八站",32.108,6.90,221.55,222,0,186,11780],
+["2025/5/28",2025,5,"UPower","超充","中和建八站",37,6.90,255.30,255,0,220,12000],
+["2025/6/3",2025,6,"UPower","超充","中和建八站",39.141,6.90,270.07,270,0,227,12227],
+["2025/6/6",2025,6,"UPower","超充","中和建八站",31.849,6.90,219.76,220,0,187,12413],
+["2025/6/11",2025,6,"UPower","超充","中和建八站",33.687,6.90,232.44,232,0,198,12612],
+["2025/6/13",2025,6,"UPower","超充","中和建八站",34.364,6.90,237.11,237,0,196,12808],
+["2025/6/17",2025,6,"UPower","超充","中和建八站",36.681,6.90,253.10,253,0,204,13012],
+["2025/6/18",2025,6,"Tesla","慢充","土城日月光",11,0,30,0,30,71,13083],
+["2025/6/19",2025,6,"Tesla","慢充","土城日月光",9,0,0,0,0,64,13147],
+["2025/6/23",2025,6,"Tesla","慢充","土城日月光",21,0,0,0,0,131,13278],
+["2025/6/24",2025,6,"Tesla","慢充","土城日月光",9,0,0,0,0,67,13345],
+["2025/6/26",2025,6,"Tesla","慢充","土城日月光",17,0,0,0,0,124,13468],
+["2025/7/1",2025,7,"UPower","超充","中和建八站",39.345,6.90,271.48,271,0,209,13677],
+["2025/7/4",2025,7,"Tesla","慢充","土城日月光",20,0,15,0,15,101,13779],
+["2025/7/7",2025,7,"Tesla","慢充","土城日月光",19,0,0,0,0,99,13877],
+["2025/7/8",2025,7,"Tesla","慢充","土城日月光",9,0,0,0,0,62,13939],
+["2025/7/9",2025,7,"Tesla","慢充","土城日月光",4,0,0,0,0,24,13963],
+["2025/7/14",2025,7,"Tesla","慢充","土城日月光",18,0,0,0,0,140,14103],
+["2025/7/16",2025,7,"Tesla","慢充","土城日月光",18,0,0,0,0,90,14193],
+["2025/7/17",2025,7,"Tesla","慢充","土城日月光",7,0,0,0,0,24,14217],
+["2025/7/20",2025,7,"Tesla","慢充","土城日月光",11,0,0,0,0,62,14279],
+["2025/7/22",2025,7,"Tesla","慢充","土城日月光",13,0,0,0,0,68,14347],
+["2025/7/24",2025,7,"Tesla","慢充","土城日月光",18,0,0,0,0,132,14479],
+["2025/7/28",2025,7,"Tesla","慢充","土城日月光",17,0,0,0,0,83,14563],
+["2025/7/31",2025,7,"Tesla","慢充","土城日月光",18,0,0,0,0,144,14707],
+["2025/8/5",2025,8,"UPower","超充","中和建八站",40.266,6.90,277.84,278,0,170,14877],
+["2025/8/7",2025,8,"Tesla","慢充","土城日月光",14,0,0,0,0,71,14948],
+["2025/8/8",2025,8,"Tesla","慢充","土城日月光",10,0,0,0,0,62,15009],
+["2025/8/11",2025,8,"Tesla","慢充","土城日月光",19,0,0,0,0,113,15122],
+["2025/8/15",2025,8,"UPower","超充","中和建八站",40.075,6.90,276.52,277,0,192,15314],
+["2025/8/18",2025,8,"Tesla","慢充","土城日月光",12,0,0,0,0,152,15466],
+["2025/8/19",2025,8,"Tesla","慢充","土城日月光",19,0,0,0,0,60,15526],
+["2025/8/20",2025,8,"Tesla","慢充","土城日月光",11,0,0,0,0,3,15530],
+["2025/8/22",2025,8,"Tesla","慢充","土城日月光",12,0,0,0,0,70,15599],
+["2025/8/25",2025,8,"Tesla","慢充","土城日月光",19,0,0,0,0,126,15726],
+["2025/8/26",2025,8,"Tesla","慢充","土城日月光",16,0,0,0,0,72,15798],
+["2025/8/28",2025,8,"Tesla","慢充","土城日月光",19,0,0,0,0,105,15902],
+["2025/9/2",2025,9,"Tesla","慢充","土城日月光",12,0,0,0,0,208,16111],
+["2025/9/4",2025,9,"Tesla","慢充","土城日月光",12,0,0,0,0,89,16200],
+["2025/9/7",2025,9,"Tesla","超充","土城日月光",34,8.00,272,272,0,121,16321],
+["2025/9/8",2025,9,"Tesla","慢充","土城日月光",13,0,0,0,0,3,16325],
+["2025/9/16",2025,9,"Tesla","慢充","土城日月光",12,0,0,0,0,240,16564],
+["2025/9/16",2025,9,"Tesla","慢充","土城日月光",12,0,0,0,0,1,16565],
+["2025/9/22",2025,9,"EVOASIS","超充","央北綠洲",50.12,5.80,290.70,291,0,205,16770],
+["2025/9/23",2025,9,"Tesla","慢充","土城日月光",8,0,0,0,0,54,16825],
+["2025/9/28",2025,9,"EVOASIS","超充","央北綠洲",33.3,5.80,193.14,193,0,206,17030],
+["2025/10/5",2025,10,"Tesla","慢充","土城日月光",2,0,0,0,0,214,17244],
+["2025/10/6",2025,10,"EVALUE","超充","桃園東勇站",45.209,6.90,311.94,312,0,26,17270],
+["2025/10/14",2025,10,"Tesla","超充","土城日月光",21,9.00,189,189,0,260,17530],
+["2025/10/15",2025,10,"UPower","超充","中和建八站",27.279,6.90,188.23,188,0,78,17608],
+["2025/10/20",2025,10,"UPower","超充","中和建八站",31.033,6.90,214.13,214,0,174,17783],
+["2025/10/24",2025,10,"EVbar","超充","淞和土城站",30.21,6.02,181.86,182,0,129,17912],
+["2025/10/30",2025,10,"EVbar","超充","淞和土城站",40.123,5.38,216,216,0,235,18146],
+["2025/11/7",2025,11,"EVbar","超充","淞和土城站",39.222,6.00,235.33,235,0,238,18384],
+["2025/11/9",2025,11,"UPower","超充","員林大道站",44.089,8.50,374.76,375,0,223,18607],
+["2025/11/9",2025,11,"EVbar","超充","淞和土城站",42.669,6.49,276.92,277,0,210,18816],
+["2025/11/10",2025,11,"Tesla","慢充","土城日月光",1,0,0,0,0,45,18861],
+["2025/11/14",2025,11,"EVbar","超充","淞和土城站",30.251,6.02,182.11,182,0,137,18998],
+["2025/11/20",2025,11,"EVbar","超充","淞和土城站",37.54,6.00,225.24,225,0,233,19231],
+["2025/11/26",2025,11,"UPower","超充","中和建八站",39.868,6.90,275.09,275,0,241,19471],
+["2025/11/30",2025,11,"EVbar","慢充","淞和土城站",3.626,6.50,22.57,23,0,196,19667],
+["2025/11/30",2025,11,"EVbar","超充","淞和土城站",28.652,6.50,186.24,186,0,0,19667],
+["2025/12/6",2025,12,"EVbar","超充","淞和土城站",47.654,6.50,309.75,310,0,289,19956],
+["2025/12/10",2025,12,"EVbar","超充","淞和土城站",31.753,6.00,188.52,191,0,197,20152],
+["2025/12/12",2025,12,"EVbar","超充","淞和土城站",24,6.00,144,144,0,144,20297],
+["2025/12/13",2025,12,"EVbar","超充","淞和土城站",8.975,6.50,58.34,58,0,52,20349],
+["2025/12/13",2025,12,"UPower","超充","嘉義交流道站",42.427,8.50,360.63,361,0,256,20605],
+["2025/12/14",2025,12,"EVOASIS","超充","南投休息站",32.99,10.00,329.90,330,0,216,20820],
+["2025/12/14",2025,12,"EVbar","超充","淞和土城站",41.149,6.50,267.47,267,0,193,21013],
+["2025/12/20",2025,12,"EVbar","超充","淞和土城站",44.26,6.50,287.69,288,0,264,21278],
+["2025/12/25",2025,12,"EVbar","超充","淞和土城站",15.788,6.50,100.62,101,0,176,21454],
+["2025/12/25",2025,12,"EVbar","超充","淞和土城站",11.602,6.50,75.41,75,0,0,21454],
+["2025/12/27",2025,12,"EVbar","超充","淞和土城站",32.34,6.50,210.21,210,0,188,21642],
+["2026/1/3",2026,1,"EVbar","超充","淞和土城站",32.904,6.50,213.88,214,0,181,21824],
+["2026/1/4",2026,1,"EVbar","超充","淞和土城站",20.208,6.50,131.35,131,0,113,21936],
+["2026/1/8",2026,1,"EVbar","超充","淞和土城站",47.498,6.50,308.74,309,0,273,22209],
+["2026/1/23",2026,1,"UPower","超充","中和建八站",43.578,6.90,300.69,301,0,233,22442],
+["2026/2/1",2026,2,"EVOASIS","超充","八德豐田路",32,5.80,185.60,186,0,151,22594],
+["2026/2/16",2026,2,"EVbar","超充","淞和土城站",21.253,6.50,137.14,137,0,120,22713],
+["2026/2/26",2026,2,"EVbar","超充","淞和土城站",40.03,6.00,240.18,240,0,207,22920],
+["2026/2/28",2026,2,"EVbar","超充","淞和土城站",14.671,6.50,95.36,95,0,144,23064],
+["2026/3/1",2026,3,"EVbar","超充","淞和土城站",49.04,6.50,318.76,319,0,231,23295],
+["2026/3/5",2026,3,"EVbar","超充","淞和土城站",28.71,6.00,170.26,170,0,181,23476],
+["2026/3/12",2026,3,"EVbar","超充","淞和土城站",38.586,6.00,230.52,231,0,233,23709],
+["2026/3/14",2026,3,"EVbar","超充","淞和土城站",18.833,6.50,122.41,122,0,103,23812],
+["2026/3/16",2026,3,"EVbar","超充","淞和土城站",31.603,6.00,189.62,190,0,152,23964],
+["2026/3/20",2026,3,"EVbar","超充","淞和土城站",22.072,6.00,132.43,132,0,137,24101],
+["2026/3/21",2026,3,"EVbar","超充","淞和土城站",17.244,6.50,112.09,112,0,104,24205],
+["2026/3/22",2026,3,"EVOASIS","超充","豐原交流道",20.6,8.50,175.10,175,0,141,24345],
+["2026/3/23",2026,3,"EVbar","超充","淞和土城站",32.319,6.00,192.91,193,0,130,24476],
+["2026/3/28",2026,3,"EVbar","超充","淞和土城站",34.576,6.50,222.74,223,0,224,24699],
+["2026/4/2",2026,4,"EVbar","超充","淞和土城站",32.201,6.00,192.21,192,0,273,24972],
+["2026/4/3",2026,4,"EVbar","超充","淞和土城站",22.297,6.50,144.93,145,0,67,25039],
+["2026/4/10",2026,4,"EVbar","超充","淞和土城站",32.62,6.00,194.72,195,0,202,25241],
+["2026/4/17",2026,4,"EVbar","超充","淞和土城站",29.892,6.00,178.35,178,0,180,25422],
+["2026/4/25",2026,4,"EVbar","超充","淞和土城站",45.936,6.50,298.58,299,0,280,25701],
+["2026/5/1",2026,5,"EVbar","超充","淞和土城站",35.899,6.50,232.34,232,0,230,25932],
 ];
 
-// ═══════════════════════════════════════════════════════════════════
-// CONSTANTS & STATE
-// ═══════════════════════════════════════════════════════════════════
-const PURCHASE_KM = 50;
-const LATEST_KM   = 25932;
+let DATA=LOCAL, period='all', dark=true, CH={};
 
-let activePeriod = 'all';
-let charts       = {};
-let isDark       = true;
+// toast
+let tt;
+function toast(msg,type='info'){
+  const el=document.getElementById('toast'),ic={info:'ℹ️',ok:'✅',err:'⚠️'}[type]||'ℹ️';
+  document.getElementById('ti').textContent=ic;
+  document.getElementById('tm2').textContent=msg;
+  el.className='show'+(type==='err'?' err':type==='ok'?' ok':'');
+  clearTimeout(tt);tt=setTimeout(()=>{el.className='';},4000);
+}
 
-// ═══════════════════════════════════════════════════════════════════
-// THEME TOGGLE
-// ═══════════════════════════════════════════════════════════════════
-function toggleTheme() {
-  isDark = !isDark;
-  document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
-  document.getElementById('theme-btn').textContent = isDark ? '🌙' : '☀️';
-  // re-render charts with new colors
+// GAS guide
+function showGuide(){
+  toast('GAS 程式碼已輸出至瀏覽器 Console（F12）。請複製並部署為「任何人可存取」的網路應用程式。','info');
+  console.group('📋 GAS Code.gs — 複製貼入 Apps Script');
+  console.log(`function doGet(e) {
+  const sheet = SpreadsheetApp
+    .getActiveSpreadsheet()
+    .getSheetByName("充電記錄"); // ← 改成你的工作表名稱
+  const rows   = sheet.getDataRange().getValues();
+  const header = rows[0];
+  const data   = rows.slice(1).map(r => {
+    const o = {};
+    header.forEach((h, i) => o[h] = r[i]);
+    return o;
+  });
+  return ContentService
+    .createTextOutput(JSON.stringify({ ok: true, count: data.length, data }))
+    .setMimeType(ContentService.MimeType.JSON);
+}`);
+  console.groupEnd();
+  console.info('⚙️ 部署步驟：\n1. Google Sheets → 擴充功能 → Apps Script\n2. 貼上上方程式碼\n3. 部署 → 新增部署 → 網路應用程式\n4. 執行身分：我本人 / 存取：所有人\n5. 複製網址貼入儀表板輸入框');
+}
+
+// GAS row → array (映射 Sheets 欄位名稱 → 內部 array 格式)
+function gasRow(o){
+  const g=(...ks)=>{for(const k of ks)if(o[k]!==undefined&&o[k]!=='')return o[k];return null;};
+  const n=v=>{const p=parseFloat(v);return isFinite(p)?p:null;};
+  const dt=g('日期','date','Date');
+  const yr=n(g('年','year'))||(dt?parseInt(String(dt).split('/')[0]):null);
+  const mo=n(g('月','month'))||(dt?parseInt(String(dt).split('/')[1]):null);
+  return [
+    String(dt||''),yr,mo,
+    String(g('廠牌','brand','Brand')||''),
+    String(g('類型','type','Type','充電類型')||'超充'),
+    String(g('站名','station','Station','充電站')||''),
+    n(g('實際kWh','kWh','kwh','充電度數','actualKwh'))||0,
+    n(g('費率','rate','Rate'))||0,
+    n(g('總費','totalCost','total','花費'))||0,
+    n(g('充電費','chargeFee','charge'))||0,
+    n(g('停車費','parkFee','park'))||0,
+    n(g('上次里程','kmSince','lastKm')),
+    n(g('當前里程','kmAtCharge','currentKm','odometer')),
+  ];
+}
+
+// sync
+async function syncFromSheet(){
+  const url=(document.getElementById('sheetUrl').value||'').trim()||localStorage.getItem(LS_KEY)||'';
+  if(!url){toast('請先填入 GAS 網址','err');return;}
+  setSS('spin','同步中...');
+  try{
+    const ctrl=new AbortController();
+    const tid=setTimeout(()=>ctrl.abort(),12000);
+    const res=await fetch(url,{signal:ctrl.signal});
+    clearTimeout(tid);
+    if(!res.ok)throw new Error(`HTTP ${res.status}`);
+    const json=await res.json();
+    if(!json.ok||!Array.isArray(json.data))throw new Error('回傳格式不符：需 {ok:true,data:[...]}');
+    if(json.data.length===0)throw new Error('工作表無資料，請確認工作表名稱');
+    const conv=json.data.map((r,i)=>{try{return gasRow(r);}catch(e){console.warn('row',i,'失敗:',e);return null;}}).filter(r=>r&&r[6]>0);
+    if(!conv.length)throw new Error('無有效充電記錄（kWh>0）');
+    DATA=conv;
+    localStorage.setItem(LS_KEY,url);
+    const now=new Date().toLocaleString('zh-TW');
+    document.getElementById('lsync').textContent=`✅ 已同步 ${conv.length} 筆 · ${now}`;
+    setSS('ok',`已同步 ${conv.length} 筆`);
+    toast(`成功載入 ${conv.length} 筆充電記錄`,'ok');
+    render();
+  }catch(err){
+    let msg=err.name==='AbortError'?'連線逾時（12s）：請確認網址是否可存取'
+      :err.message.includes('fetch')||err.message.includes('Network')?'無法連線：CORS 問題。請確認 GAS 部署設定'
+      :err.message.includes('JSON')?'非 JSON 格式：請確認 GAS MimeType 設定'
+      :`錯誤：${err.message}`;
+    setSS('fail','同步失敗');toast(msg,'err');
+    document.getElementById('lsync').textContent=`⚠️ 失敗：${err.message} · 仍顯示本機資料`;
+    console.error('[Dashboard sync]',err);
+  }
+}
+
+function saveAndSync(){
+  const url=document.getElementById('sheetUrl').value.trim();
+  if(!url.startsWith('https://script.google.com/')){toast('網址應以 https://script.google.com/macros/s/ 開頭','err');return;}
+  syncFromSheet();
+}
+function useLocal(){
+  DATA=LOCAL;setSS('','離線模式');
+  document.getElementById('lsync').textContent='目前使用本機備份資料（183 筆）';
+  document.getElementById('sheetUrl').value='';
+  localStorage.removeItem(LS_KEY);toast('已切換回本機備份資料','info');render();
+}
+function setSS(state,lbl){
+  document.getElementById('sdot').className='sdot '+state;
+  document.getElementById('slbl').textContent=lbl;
+}
+
+// theme
+function toggleTheme(){
+  dark=!dark;
+  document.documentElement.setAttribute('data-theme',dark?'dark':'light');
+  document.getElementById('theme-btn').textContent=dark?'🌙':'☀️';
   render();
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// SAFE MATH
-// ═══════════════════════════════════════════════════════════════════
-const safeNum = (v, fb=0) => { const n=parseFloat(v); return isFinite(n)&&!isNaN(n)?n:fb; };
-const safeDiv = (n,d,fb=0) => (!isFinite(d)||d===0)?fb:(v=>isFinite(v)?v:fb)(n/d);
+// math
+const sn=(v,fb=0)=>{const n=parseFloat(v);return isFinite(n)?n:fb;};
+const sd=(n,d,fb=0)=>(!isFinite(d)||d===0)?fb:(v=>isFinite(v)?v:fb)(n/d);
 
-// ═══════════════════════════════════════════════════════════════════
-// DATA PROCESSING
-// ═══════════════════════════════════════════════════════════════════
-function getFiltered() {
-  if (activePeriod === 'all') return RAW;
-  return RAW.filter(r => r[1] === parseInt(activePeriod));
+// data
+function filt(){return period==='all'?DATA:DATA.filter(r=>r[1]===parseInt(period));}
+function kpis(data){
+  if(!data.length)return{totalSessions:0,totalKwh:0,totalCost:0,totalChargeFee:0,totalParkFee:0,superKwh:0,slowKwh:0,purchasedKm:LATEST_KM-PURCHASE_KM,avgKmPerKwh:0,avgRatePerKm:0};
+  const tKwh=data.reduce((s,r)=>s+sn(r[6]),0);
+  const tCost=data.reduce((s,r)=>s+sn(r[8]),0);
+  const tChg=data.reduce((s,r)=>s+sn(r[9]),0);
+  const tPk=data.reduce((s,r)=>s+sn(r[10]),0);
+  const sKwh=data.filter(r=>r[4]==='超充').reduce((s,r)=>s+sn(r[6]),0);
+  const lKwh=data.filter(r=>r[4]==='慢充').reduce((s,r)=>s+sn(r[6]),0);
+  const kms=data.filter(r=>r[12]!=null&&isFinite(r[12])).map(r=>r[12]);
+  const km=kms.length>=2?Math.max(...kms)-Math.min(...kms):data.filter(r=>r[11]&&r[11]>0).reduce((s,r)=>s+sn(r[11]),0);
+  const pk=LATEST_KM-PURCHASE_KM;
+  return{totalSessions:data.length,totalKwh:tKwh,totalCost:tCost,totalChargeFee:tChg,totalParkFee:tPk,superKwh:sKwh,slowKwh:lKwh,purchasedKm:pk,avgKmPerKwh:sd(pk,tKwh),avgRatePerKm:sd(tCost,km>0?km:pk)};
 }
-
-function computeKPIs(data) {
-  if (!data || data.length === 0) return { empty:true, totalSessions:0, totalKwh:0, totalCost:0, totalChargeFee:0, totalParkFee:0, superKwh:0, slowKwh:0, purchasedKm:LATEST_KM-PURCHASE_KM, avgKmPerKwh:0, avgRatePerKm:0 };
-  const totalKwh       = data.reduce((s,r)=>s+safeNum(r[6]),0);
-  const totalCost      = data.reduce((s,r)=>s+safeNum(r[8]),0);
-  const totalChargeFee = data.reduce((s,r)=>s+safeNum(r[9]),0);
-  const totalParkFee   = data.reduce((s,r)=>s+safeNum(r[10]),0);
-  const superKwh       = data.filter(r=>r[4]==='超充').reduce((s,r)=>s+safeNum(r[6]),0);
-  const slowKwh        = data.filter(r=>r[4]==='慢充').reduce((s,r)=>s+safeNum(r[6]),0);
-  const kms = data.filter(r=>r[12]!=null&&isFinite(r[12])).map(r=>r[12]);
-  const kmDriven = kms.length>=2 ? Math.max(...kms)-Math.min(...kms) : data.filter(r=>r[11]&&r[11]>0).reduce((s,r)=>s+safeNum(r[11]),0);
-  const purchasedKm = LATEST_KM - PURCHASE_KM;
-  return {
-    totalSessions: data.length, totalKwh, totalCost, totalChargeFee, totalParkFee,
-    superKwh, slowKwh, purchasedKm,
-    avgKmPerKwh: safeDiv(purchasedKm, totalKwh),
-    avgRatePerKm: safeDiv(totalCost, kmDriven>0?kmDriven:purchasedKm),
-  };
-}
-
-function computeMonthly(data) {
+function monthly(data){
   const m={};
-  data.forEach(r=>{
-    const k=`${r[1]}/${String(r[2]).padStart(2,'0')}`;
-    if(!m[k]) m[k]={key:k,year:r[1],month:r[2],sessions:0,kwh:0,cost:0,chargeFee:0,parkFee:0,superKwh:0,slowKwh:0,km:0};
-    const e=m[k];
-    e.sessions++;
-    e.kwh+=safeNum(r[6]); e.cost+=safeNum(r[8]);
-    e.chargeFee+=safeNum(r[9]); e.parkFee+=safeNum(r[10]);
-    if(r[4]==='超充') e.superKwh+=safeNum(r[6]);
-    else e.slowKwh+=safeNum(r[6]);
-    if(r[11]&&r[11]>0) e.km+=safeNum(r[11]);
-  });
+  data.forEach(r=>{const k=`${r[1]}/${String(r[2]).padStart(2,'0')}`;if(!m[k])m[k]={key:k,sessions:0,kwh:0,cost:0,chargeFee:0,parkFee:0,km:0};const e=m[k];e.sessions++;e.kwh+=sn(r[6]);e.cost+=sn(r[8]);e.chargeFee+=sn(r[9]);e.parkFee+=sn(r[10]);if(r[11]&&r[11]>0)e.km+=sn(r[11]);});
   return Object.values(m).sort((a,b)=>a.key.localeCompare(b.key));
 }
+function tclr(){return{grid:dark?'rgba(56,189,248,0.06)':'rgba(56,189,248,0.10)',tick:dark?'#334155':'#94A3B8',a:'#38BDF8',aA:'rgba(56,189,248,0.72)',b:'#818CF8',bA:'rgba(129,140,248,0.45)'};}
 
-// ═══════════════════════════════════════════════════════════════════
-// CHART COLORS (theme-aware)
-// ═══════════════════════════════════════════════════════════════════
-function cc(base, alpha=1) {
-  // base is 'dark-ok/light-ok' — always return correct hex
-  return base.replace('A', Math.round(alpha*255).toString(16).padStart(2,'0'));
-}
-function getTC() {
-  // return theme-correct colors object
-  return {
-    grid: isDark ? 'rgba(29,185,84,0.08)' : 'rgba(29,185,84,0.12)',
-    tick: isDark ? '#4A5C40' : '#7AAB7E',
-    green: '#1DB954',
-    greenA: 'rgba(29,185,84,0.75)',
-    blue: '#38bdf8',
-    blueA: 'rgba(56,189,248,0.45)',
-    amber: '#FACC15',
-    orange: '#FB923C',
-  };
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// RENDER KPI CARDS
-// ═══════════════════════════════════════════════════════════════════
-function renderKPIs(kpi) {
-  const cards = [
-    { label:'總充電次數',    val: kpi.totalSessions,                 unit:'次',    accent:'#1DB954', icon:'⚡' },
-    { label:'總充電度數',    val: kpi.totalKwh.toFixed(1),           unit:'kWh',   accent:'#39E87A', icon:'🔋' },
-    { label:'超充費用',      val: 'NT$'+Math.round(kpi.totalChargeFee).toLocaleString(), unit:'元', accent:'#FB923C', icon:'⚡' },
-    { label:'停車費用',      val: 'NT$'+Math.round(kpi.totalParkFee).toLocaleString(), unit:'元', accent:'#38bdf8', icon:'🅿' },
-    { label:'總花費',        val: 'NT$'+Math.round(kpi.totalCost).toLocaleString(), unit:'元',  accent:'#FACC15', icon:'💳' },
-    { label:'超充度數',      val: kpi.superKwh.toFixed(1),           unit:'kWh',   accent:'#FB923C', icon:'🔌' },
-    { label:'慢充度數',      val: kpi.slowKwh.toFixed(1),            unit:'kWh',   accent:'#38bdf8', icon:'🔌' },
-    { label:'平均每km費率',  val: 'NT$'+kpi.avgRatePerKm.toFixed(2), unit:'元/km', accent:'#A78BFA', icon:'📍' },
+// render KPIs
+function rKPI(k){
+  const cs=[
+    {l:'總充電次數',v:k.totalSessions,u:'次',c:'#38BDF8',i:'⚡'},
+    {l:'總充電度數',v:k.totalKwh.toFixed(1),u:'kWh',c:'#7DD3FC',i:'🔋'},
+    {l:'超充費用',v:'NT$'+Math.round(k.totalChargeFee).toLocaleString(),u:'元',c:'#FB923C',i:'🔌'},
+    {l:'停車費用',v:'NT$'+Math.round(k.totalParkFee).toLocaleString(),u:'元',c:'#818CF8',i:'🅿'},
+    {l:'總花費',v:'NT$'+Math.round(k.totalCost).toLocaleString(),u:'元',c:'#FACC15',i:'💳'},
+    {l:'超充度數',v:k.superKwh.toFixed(1),u:'kWh',c:'#FB923C',i:'⚡'},
+    {l:'慢充度數',v:k.slowKwh.toFixed(1),u:'kWh',c:'#34D399',i:'🔌'},
+    {l:'每km費率',v:'NT$'+k.avgRatePerKm.toFixed(2),u:'元/km',c:'#A78BFA',i:'📍'},
   ];
-  document.getElementById('kpi-grid').innerHTML = cards.map(c=>`
-    <div class="kpi-card" style="--kpi-accent:${c.accent}">
-      <div class="kpi-icon">${c.icon}</div>
-      <div class="kpi-label">${c.label}</div>
-      <div class="kpi-val">${c.val}</div>
-      <div class="kpi-unit">${c.unit}</div>
-    </div>
-  `).join('');
+  document.getElementById('kgrid').innerHTML=cs.map(c=>`<div class="kc" style="--kca:${c.c}"><div class="ki">${c.i}</div><div class="kl">${c.l}</div><div class="kv">${c.v}</div><div class="ku">${c.u}</div></div>`).join('');
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// RENDER HERO SECTION
-// ═══════════════════════════════════════════════════════════════════
-function renderHero(kpi) {
-  document.getElementById('hero-eff').textContent = kpi.avgKmPerKwh.toFixed(2);
-  document.getElementById('hero-rate').textContent = kpi.avgRatePerKm.toFixed(2);
-
-  const superPct = safeDiv(kpi.superKwh, kpi.totalKwh) * 100;
-  const slowPct  = safeDiv(kpi.slowKwh,  kpi.totalKwh) * 100;
-
-  document.getElementById('ring-pct').textContent = superPct.toFixed(0)+'%';
-  document.getElementById('super-kwh-disp').textContent = kpi.superKwh.toFixed(0)+' kWh';
-  document.getElementById('slow-kwh-disp').textContent  = kpi.slowKwh.toFixed(0)+' kWh';
-
-  // Animated ring fill (circumference = 2πr = 2π×45 ≈ 283)
-  const C = 283;
-  const superOff = C - (superPct/100)*C;
-  const slowOff  = C - (slowPct/100)*C;
-
+function rHero(k){
+  document.getElementById('hkm').textContent=k.purchasedKm.toLocaleString();
+  document.getElementById('hodo').textContent=LATEST_KM.toLocaleString();
+  document.getElementById('heff').textContent=k.avgKmPerKwh.toFixed(2);
+  document.getElementById('hrate').textContent=k.avgRatePerKm.toFixed(2);
+  document.getElementById('fcnt').textContent=DATA.length;
+  const sp=sd(k.superKwh,k.totalKwh)*100, sl=sd(k.slowKwh,k.totalKwh)*100;
+  document.getElementById('rpct').textContent=sp.toFixed(0)+'%';
+  document.getElementById('suKwh').textContent=k.superKwh.toFixed(0)+' kWh';
+  document.getElementById('slKwh').textContent=k.slowKwh.toFixed(0)+' kWh';
+  const C=283;
   setTimeout(()=>{
-    document.getElementById('ring-super').style.strokeDashoffset = superOff;
-    document.getElementById('ring-slow').style.strokeDashoffset  = slowOff;
-    document.getElementById('bar-super').style.width = superPct+'%';
-    document.getElementById('bar-slow').style.width  = slowPct+'%';
-  }, 400);
+    document.getElementById('rsuper').style.strokeDashoffset=C-(sp/100)*C;
+    document.getElementById('rslow').style.strokeDashoffset=C-(sl/100)*C;
+    document.getElementById('bsuper').style.width=sp+'%';
+    document.getElementById('bslow').style.width=sl+'%';
+  },300);
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// RENDER MONTHLY TABLE
-// ═══════════════════════════════════════════════════════════════════
-function renderTable(monthly) {
-  const maxKm = Math.max(...monthly.map(m=>m.km), 1);
-  document.getElementById('tbody').innerHTML = monthly.map(m=>{
-    const barW = Math.round(m.km/maxKm*50);
-    const eff  = m.km>0&&m.kwh>0 ? m.km/m.kwh : 0;
-    const effCls = eff>=6 ? 'eff-good' : eff>=5 ? 'eff-avg' : eff>0 ? 'eff-poor' : '';
-    const effTxt = eff>0 ? `<span class="eff-badge ${effCls}">${eff.toFixed(2)}</span>` : '—';
-    const perKm  = m.km>0&&m.cost>0 ? (m.cost/m.km).toFixed(2) : '—';
-    return `<tr>
-      <td>${m.key}</td>
-      <td>${m.sessions}</td>
-      <td><span class="inline-bar" style="width:${barW}px"></span>${m.km.toLocaleString()}</td>
-      <td>${m.kwh.toFixed(1)}</td>
-      <td>NT$${Math.round(m.chargeFee).toLocaleString()}</td>
-      <td>NT$${Math.round(m.parkFee).toLocaleString()}</td>
-      <td>NT$${Math.round(m.cost).toLocaleString()}</td>
-      <td>${perKm!=='—'?'NT$'+perKm:'—'}</td>
-      <td>${effTxt}</td>
-    </tr>`;
+function rTable(mo){
+  const mx=Math.max(...mo.map(m=>m.km),1);
+  document.getElementById('tbody').innerHTML=mo.map(m=>{
+    const bw=Math.round(m.km/mx*50);
+    const ef=m.km>0&&m.kwh>0?m.km/m.kwh:0;
+    const ec=ef>=6?'eg':ef>=5?'em':ef>0?'ep':'';
+    const et=ef>0?`<span class="eb ${ec}">${ef.toFixed(2)}</span>`:'—';
+    const pk=m.km>0&&m.cost>0?(m.cost/m.km).toFixed(2):'—';
+    return `<tr><td>${m.key}</td><td>${m.sessions}</td><td><span class="ib" style="width:${bw}px"></span>${m.km.toLocaleString()}</td><td>${m.kwh.toFixed(1)}</td><td>NT$${Math.round(m.chargeFee).toLocaleString()}</td><td>NT$${Math.round(m.parkFee).toLocaleString()}</td><td>NT$${Math.round(m.cost).toLocaleString()}</td><td>${pk!=='—'?'NT$'+pk:'—'}</td><td>${et}</td></tr>`;
   }).join('');
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// RENDER STATION GRID
-// ═══════════════════════════════════════════════════════════════════
-function renderStations(data) {
-  const sm={};
-  data.forEach(r=>{
-    if(!sm[r[5]]) sm[r[5]]={n:0,kwh:0,cost:0};
-    sm[r[5]].n++; sm[r[5]].kwh+=safeNum(r[6]); sm[r[5]].cost+=safeNum(r[9]);
-  });
-  const sorted = Object.entries(sm).sort((a,b)=>b[1].n-a[1].n).slice(0,8);
-  const accents=['#1DB954','#39E87A','#FACC15','#38bdf8','#FB923C','#A78BFA','#F472B6','#34D399'];
-  document.getElementById('station-grid').innerHTML = sorted.map(([name,v],i)=>`
-    <div class="station-card" style="border-top:2px solid ${accents[i%accents.length]}">
-      <div class="s-rank">#${i+1}</div>
-      <div class="s-name">${name}</div>
-      <div class="s-count">${v.n}<span style="font-size:0.65rem;font-family:sans-serif;font-weight:400;color:var(--tm)"> 次</span></div>
-      <div class="s-detail">${v.kwh.toFixed(0)} kWh · NT$${Math.round(v.cost).toLocaleString()}</div>
-    </div>
-  `).join('');
+function rStations(data){
+  const sm={};data.forEach(r=>{if(!sm[r[5]])sm[r[5]]={n:0,kwh:0,cost:0};sm[r[5]].n++;sm[r[5]].kwh+=sn(r[6]);sm[r[5]].cost+=sn(r[9]);});
+  const s=Object.entries(sm).sort((a,b)=>b[1].n-a[1].n).slice(0,8);
+  const pl=['#38BDF8','#7DD3FC','#818CF8','#34D399','#FB923C','#FACC15','#F472B6','#A78BFA'];
+  document.getElementById('sgrid').innerHTML=s.map(([n,v],i)=>`<div class="scard" style="border-top:2px solid ${pl[i%pl.length]}"><div class="srk">#${i+1}</div><div class="snm">${n}</div><div class="scn">${v.n}<span style="font-size:.62rem;font-weight:400;color:var(--tm)"> 次</span></div><div class="sdt">${v.kwh.toFixed(0)} kWh · NT$${Math.round(v.cost).toLocaleString()}</div></div>`).join('');
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// CHARTS
-// ═══════════════════════════════════════════════════════════════════
-function destroyChart(id) { if(charts[id]){charts[id].destroy();delete charts[id];} }
+function dc(id){if(CH[id]){CH[id].destroy();delete CH[id];}}
 
-function renderChartMonthly(monthly) {
-  destroyChart('monthly');
-  const tc = getTC();
-  document.getElementById('monthly-legend').innerHTML = `
-    <span><span class="legend-dot" style="background:${tc.greenA}"></span>充電度數 kWh</span>
-    <span><span class="legend-dot" style="background:${tc.blueA}"></span>總花費 NT$÷10</span>
-  `;
-  charts['monthly'] = new Chart(document.getElementById('chartMonthly'), {
-    type:'bar',
-    data:{
-      labels: monthly.map(m=>m.key),
-      datasets:[
-        {label:'kWh', data:monthly.map(m=>+m.kwh.toFixed(1)), backgroundColor:tc.greenA, borderRadius:3, borderSkipped:false},
-        {label:'NT$/10', data:monthly.map(m=>+(m.cost/10).toFixed(0)), backgroundColor:tc.blueA, borderRadius:3, borderSkipped:false}
-      ]
-    },
-    options:{
-      responsive:true, maintainAspectRatio:false,
-      plugins:{legend:{display:false}, tooltip:{callbacks:{
-        label: ctx=>ctx.datasetIndex===0?`充電 ${ctx.raw} kWh`:`花費 NT$${(ctx.raw*10).toFixed(0)}`
-      }}},
-      scales:{
-        x:{ticks:{color:tc.tick,font:{size:10},maxRotation:45,autoSkip:monthly.length>12},grid:{color:tc.grid}},
-        y:{ticks:{color:tc.tick,font:{size:10}},grid:{color:tc.grid}}
-      }
-    }
-  });
+function rChartM(mo){
+  dc('m');const t=tclr();
+  document.getElementById('mleg').innerHTML=`<span><span class="ld" style="background:${t.aA}"></span>充電度數 kWh</span><span><span class="ld" style="background:${t.bA}"></span>總花費 NT$÷10</span>`;
+  CH['m']=new Chart(document.getElementById('cM'),{type:'bar',data:{labels:mo.map(m=>m.key),datasets:[{label:'kWh',data:mo.map(m=>+m.kwh.toFixed(1)),backgroundColor:t.aA,borderRadius:3,borderSkipped:false},{label:'NT$/10',data:mo.map(m=>+(m.cost/10).toFixed(0)),backgroundColor:t.bA,borderRadius:3,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.datasetIndex===0?`充電 ${ctx.raw} kWh`:`花費 NT$${(ctx.raw*10).toFixed(0)}`}}},scales:{x:{ticks:{color:t.tick,font:{size:10},maxRotation:45,autoSkip:mo.length>12},grid:{color:t.grid}},y:{ticks:{color:t.tick,font:{size:10}},grid:{color:t.grid}}}}});
 }
 
-function renderChartEff(data) {
-  destroyChart('eff');
-  const tc = getTC();
-  const pts = data.filter(r=>r[11]&&r[11]>0&&r[6]>3).map(r=>+(safeNum(r[11])/safeNum(r[6])).toFixed(2));
-  const labels = data.filter(r=>r[11]&&r[11]>0&&r[6]>3).map(r=>r[0]);
-  const ma5 = pts.map((p,i,a)=>{const sl=a.slice(Math.max(0,i-4),i+1);return +(sl.reduce((s,v)=>s+v,0)/sl.length).toFixed(2);});
-  charts['eff'] = new Chart(document.getElementById('chartEff'),{
-    type:'line',
-    data:{labels,datasets:[
-      {label:'每次電耗',data:pts,borderColor:'rgba(29,185,84,0.3)',backgroundColor:'transparent',pointRadius:1.5,pointBackgroundColor:'rgba(29,185,84,0.5)',tension:0.3,borderWidth:1},
-      {label:'5次均線',data:ma5,borderColor:'#1DB954',backgroundColor:'transparent',pointRadius:0,tension:0.4,borderWidth:2}
-    ]},
-    options:{responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label}: ${ctx.raw} km/kWh`}}},
-      scales:{
-        x:{ticks:{color:tc.tick,font:{size:9},autoSkip:true,maxTicksLimit:8},grid:{color:tc.grid}},
-        y:{ticks:{color:tc.tick,font:{size:10}},grid:{color:tc.grid},min:3,max:10}
-      }
-    }
-  });
+function rChartE(data){
+  dc('e');const t=tclr();
+  const pts=data.filter(r=>r[11]&&r[11]>0&&r[6]>3).map(r=>+(sn(r[11])/sn(r[6])).toFixed(2));
+  const lbl=data.filter(r=>r[11]&&r[11]>0&&r[6]>3).map(r=>r[0]);
+  const ma=pts.map((p,i,a)=>{const sl=a.slice(Math.max(0,i-4),i+1);return+(sl.reduce((s,v)=>s+v,0)/sl.length).toFixed(2);});
+  CH['e']=new Chart(document.getElementById('cE'),{type:'line',data:{labels:lbl,datasets:[{label:'每次電耗',data:pts,borderColor:'rgba(56,189,248,.28)',backgroundColor:'transparent',pointRadius:1.5,pointBackgroundColor:'rgba(56,189,248,.5)',tension:.3,borderWidth:1},{label:'5次均線',data:ma,borderColor:t.a,backgroundColor:'transparent',pointRadius:0,tension:.4,borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label}: ${ctx.raw} km/kWh`}}},scales:{x:{ticks:{color:t.tick,font:{size:9},autoSkip:true,maxTicksLimit:8},grid:{color:t.grid}},y:{ticks:{color:t.tick,font:{size:10}},grid:{color:t.grid},min:3,max:10}}}});
 }
 
-function renderChartBrand(data) {
-  destroyChart('brand');
-  const tc = getTC();
-  const bm={};
-  data.forEach(r=>{const b=r[3];bm[b]=(bm[b]||0)+1;});
-  const sorted=Object.entries(bm).sort((a,b)=>b[1]-a[1]);
-  const pal=['#1DB954','#39E87A','#38bdf8','#FACC15','#FB923C','#A78BFA','#F472B6','#34D399'];
-  const h=Math.max(200,sorted.length*38+50);
-  document.getElementById('brand-wrap').style.height=h+'px';
-  charts['brand']=new Chart(document.getElementById('chartBrand'),{
-    type:'bar',
-    data:{labels:sorted.map(e=>e[0]),datasets:[{label:'次數',data:sorted.map(e=>e[1]),backgroundColor:sorted.map((_,i)=>pal[i%pal.length]),borderRadius:4,borderSkipped:false}]},
-    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.raw} 次`}}},
-      scales:{
-        x:{ticks:{color:tc.tick,font:{size:10},stepSize:1},grid:{color:tc.grid}},
-        y:{ticks:{color:tc.tick,font:{size:11}},grid:{color:tc.grid}}
-      }
-    }
-  });
+function rChartB(data){
+  dc('b');const t=tclr();
+  const bm={};data.forEach(r=>{bm[r[3]]=(bm[r[3]]||0)+1;});
+  const s=Object.entries(bm).sort((a,b)=>b[1]-a[1]);
+  const pl=['#38BDF8','#7DD3FC','#818CF8','#34D399','#FB923C','#FACC15','#F472B6','#A78BFA'];
+  document.getElementById('bwrap').style.height=Math.max(200,s.length*38+50)+'px';
+  CH['b']=new Chart(document.getElementById('cB'),{type:'bar',data:{labels:s.map(e=>e[0]),datasets:[{label:'次數',data:s.map(e=>e[1]),backgroundColor:s.map((_,i)=>pl[i%pl.length]),borderRadius:4,borderSkipped:false}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.raw} 次`}}},scales:{x:{ticks:{color:t.tick,font:{size:10},stepSize:1},grid:{color:t.grid}},y:{ticks:{color:t.tick,font:{size:11}},grid:{color:t.grid}}}}});
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// MAIN RENDER
-// ═══════════════════════════════════════════════════════════════════
-function render() {
-  const data    = getFiltered();
-  const monthly = computeMonthly(data);
-  const kpi     = computeKPIs(data);
-  const labels  = {all:'全部期間','2024':'2024年','2025':'2025年','2026':'2026年'};
-
-  document.getElementById('period-badge').textContent = `${labels[activePeriod]} · ${data.length} 筆`;
-  renderKPIs(kpi);
-  renderHero(kpi);
-  renderTable(monthly);
-  renderStations(data);
-  renderChartMonthly(monthly);
-  renderChartEff(data);
-  renderChartBrand(data);
+function render(){
+  const data=filt(), mo=monthly(data), k=kpis(data);
+  const lm={all:'全部期間','2024':'2024年','2025':'2025年','2026':'2026年'};
+  document.getElementById('pb').textContent=`${lm[period]} · ${data.length} 筆`;
+  rKPI(k);rHero(k);rTable(mo);rStations(data);
+  rChartM(mo);rChartE(data);rChartB(data);
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// FILTER PILLS
-// ═══════════════════════════════════════════════════════════════════
+// pills
 document.querySelectorAll('.pill').forEach(btn=>{
   btn.addEventListener('click',()=>{
     document.querySelectorAll('.pill').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active');
-    activePeriod = btn.dataset.period;
-    // reset ring animation
-    document.getElementById('ring-super').style.strokeDashoffset='283';
-    document.getElementById('ring-slow').style.strokeDashoffset='283';
-    document.getElementById('bar-super').style.width='0';
-    document.getElementById('bar-slow').style.width='0';
+    btn.classList.add('active');period=btn.dataset.period;
+    ['rsuper','rslow'].forEach(id=>document.getElementById(id).style.strokeDashoffset='283');
+    ['bsuper','bslow'].forEach(id=>document.getElementById(id).style.width='0');
     render();
   });
 });
 
-// ═══════════════════════════════════════════════════════════════════
-// SPLASH + INIT
-// ═══════════════════════════════════════════════════════════════════
-const statusMsgs = ['LOADING CHARGING DATA...','COMPUTING ENERGY METRICS...','RENDERING DASHBOARD...','SYSTEM READY'];
-let msgIdx = 0;
-const statusEl = document.getElementById('splash-status');
-const msgTimer = setInterval(()=>{
-  msgIdx = Math.min(msgIdx+1, statusMsgs.length-1);
-  statusEl.textContent = statusMsgs[msgIdx];
-  if(msgIdx===statusMsgs.length-1) clearInterval(msgTimer);
-},600);
+// init
+const msgs=['LOADING CHARGING DATA...','COMPUTING ENERGY METRICS...','RENDERING DASHBOARD...','SYSTEM READY ✓'];
+let mi=0;
+const mt=setInterval(()=>{mi=Math.min(mi+1,msgs.length-1);document.getElementById('spst').textContent=msgs[mi];if(mi===msgs.length-1)clearInterval(mt);},600);
 
-setTimeout(()=>{
-  render();
-  document.getElementById('app').classList.add('visible');
-  setTimeout(()=>{
-    document.getElementById('splash').classList.add('hidden');
-    setTimeout(()=>{ document.getElementById('splash').remove(); }, 700);
-  }, 400);
-}, 2500);
+const sv=localStorage.getItem(LS_KEY);
+if(sv)document.getElementById('sheetUrl').value=sv;
+
+setTimeout(async()=>{
+  if(sv){try{await syncFromSheet();}catch(e){render();}}else render();
+  document.getElementById('app').classList.add('v');
+  setTimeout(()=>{document.getElementById('splash').classList.add('out');setTimeout(()=>document.getElementById('splash').remove(),600);},350);
+},2500);
 </script>
 </body>
 </html>
