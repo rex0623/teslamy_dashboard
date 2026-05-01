@@ -484,23 +484,20 @@ async function loadData(){
       return /^\d{6}$/.test(s)&&n(r[2])>0;
     });
 
-    // Summary 欄位：[1]=里程, [2]=實際用電, [3]=Wh/km, [4]=km/度, [5]=充電度數
-    // [6]=費用, [7]=元/km, [8]=元/度, [9]=超充度數, [10]=慢充度數, [16]=停車費, [17]=超充費率
-    const totalKm=n(sumRow[1]);
+    // Summary 欄位（第9列 index=8）：
+    // [0]=標籤, [1]=里程(含出廠50km), [2]=實際用電, [3]=Wh/km, [4]=km/度
+    // [5]=實際充電度數, [6]=總費用, [7]=元/km, [8]=元/度
+    // [9]=超充度數, [10]=慢充度數, [16]=停車費, [17]=超充費率
+    const totalKm=n(sumRow[1])+50;     // 工作表里程 + 出廠50km
     const totalKwh=n(sumRow[5]);
     const totalCost=n(sumRow[6]);
-    const avgEff=n(sumRow[3]);
-    const avgKmKwh=n(sumRow[4]);
+    const avgEff=n(sumRow[3]);         // Wh/km
+    const avgKmKwh=n(sumRow[4]);       // km/度
     const parkCost=n(sumRow[16]);
     const superRate=n(sumRow[17]);
-
-    // 超充/慢充度數 — 直接從充電記錄算（最準確）
-    let superKwh=0,slowKwh=0;
-    charges.forEach(r=>{
-      const kwh=n(r[12]);
-      if(r[5]==='超充')superKwh+=kwh;
-      else slowKwh+=kwh;
-    });
+    // 超充/慢充度數 — 直接用 Summary 的欄位（最準確）
+    const superKwh=n(sumRow[9]);
+    const slowKwh=n(sumRow[10]);
 
     const lastMile=charges.reduce((mx,r)=>Math.max(mx,n(r[15])),0);
     const lastC=[...charges].reverse().find(r=>r[0]);
@@ -508,11 +505,11 @@ async function loadData(){
     // Store for rebuild
     _data={charges,monthly,sumRow,totalKm,totalKwh,totalCost,avgEff,avgKmKwh,parkCost,superRate,superKwh,slowKwh,lastMile};
 
-    // Hero
-    document.getElementById('nav-mi').textContent=`${fmt(lastMile)} km`;
-    document.getElementById('hero-sub').textContent=`提車 2024.08.20 · ${new Date().toLocaleDateString('zh-TW')} 更新`;
+    // Hero — 里程用 Summary totalKm（含出廠50km）
+    document.getElementById('nav-mi').textContent=`${fmt(totalKm)} km`;
+    document.getElementById('hero-sub').textContent=`提車 2024.08.20 · 累積里程含出廠50km · ${new Date().toLocaleDateString('zh-TW')} 更新`;
     document.getElementById('hero-grid').innerHTML=[
-      [fmt(lastMile),'里程 km'],
+      [fmt(totalKm),'里程 km'],
       [fmt(totalKwh,0),'充電量 度'],
       [fmt(totalCost,0),'總費用 元'],
       [fmt(avgEff,1),'能耗 Wh/km'],
