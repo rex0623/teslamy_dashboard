@@ -332,7 +332,7 @@ function sw(id,btn){
 
 // ===== UTILITIES =====
 function dc(id){if(CH[id]){CH[id].destroy();delete CH[id]}}
-function n(v){return typeof v==='number'?v:parseFloat((v||'').toString().replace(/[^0-9.\-]/g,''))||0}
+function n(v){if(typeof v==='number')return v;if(!v)return 0;const s=String(v).replace(/NT\$|,|\s/g,'').replace(/[^0-9.\-]/g,'');return parseFloat(s)||0}
 function fmt(v,d=0){return n(v).toLocaleString('zh-TW',{minimumFractionDigits:d,maximumFractionDigits:d})}
 function fdate(v){
   if(!v)return '-';
@@ -417,7 +417,7 @@ function buildCharts(data){
   }}});
 
   // Monthly labels
-  const mths=monthly.map(r=>String(r[1])).map(s=>s.length===6?`${s.slice(0,4)}/${s.slice(4)}`:s);
+  const mths=monthly.map(r=>String(r[0]||'').replace(/\s/g,'')).map(s=>s.length===6?`${s.slice(0,4)}/${s.slice(4)}`:s);
 
   // Efficiency line
   dc('ec');CH['ec']=new Chart(document.getElementById('ec'),{type:'line',data:{labels:mths,datasets:[{
@@ -431,7 +431,7 @@ function buildCharts(data){
 
   // Monthly km
   dc('kc');CH['kc']=new Chart(document.getElementById('kc'),{type:'bar',data:{labels:mths,datasets:[{
-    data:monthly.map(r=>n(r[2])),
+    data:monthly.map(r=>n(r[1])),
     backgroundColor:isDark?'rgba(255,255,255,.12)':'rgba(0,0,0,.15)',
     borderRadius:0,
     hoverBackgroundColor:isDark?'rgba(255,255,255,.25)':'rgba(0,0,0,.3)'
@@ -481,7 +481,7 @@ async function loadData(){
     const monthly=ar.filter(r=>{
       if(!r||!r[1])return false;
       const s=String(r[1]).replace(/\s/g,'');
-      return /^\d{6}$/.test(s)&&n(r[2])>0;
+      const km=n(r[1]);return /^\d{6}$/.test(s)&&km>0;
     });
 
     // Summary 欄位（第9列 index=8）：
@@ -556,7 +556,7 @@ async function loadData(){
     }).join('');
 
     // Efficiency metrics
-    const effVals=monthly.filter(r=>n(r[2])>100).map(r=>n(r[4]));
+    const effVals=monthly.filter(r=>n(r[1])>100).map(r=>n(r[4]));
     document.getElementById('enm').innerHTML=[
       {l:'累積用電量',v:fmt(totalKwh,0),u:'度',s:'實際充電總量'},
       {l:'整體平均效率',v:fmt(avgKmKwh,2),u:'km/度',s:`= ${fmt(avgEff,1)} Wh/km`},
