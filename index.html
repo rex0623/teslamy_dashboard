@@ -210,7 +210,7 @@ footer{position:relative;z-index:1;text-align:center;padding:1.5rem;font-family:
   </div>
   <div style="text-align:center;width:100%">
     <div class="sp-bw" style="margin:0 auto"><div class="sp-b" id="sp-bar"></div></div>
-    <div class="sp-st" style="margin-top:8px" id="spst">連線 Google Sheets...</div>
+    <div class="sp-st" style="margin-top:8px" id="spst">連線 Google Sheets（最多 20 秒）...</div>
   </div>
 </div>
 
@@ -520,10 +520,14 @@ function hideError() {
 async function fetchGviz(url, label) {
   let text;
   try {
-    const res = await fetch(url, { cache: 'no-cache' });
+    const ctrl = new AbortController();
+    const tid  = setTimeout(() => ctrl.abort(), 10000); // 10s timeout
+    const res  = await fetch(url, { cache: 'no-cache', signal: ctrl.signal });
+    clearTimeout(tid);
     if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
     text = await res.text();
   } catch (e) {
+    if (e.name === 'AbortError') throw new Error(`${label} 連線逾時（10s），請確認網路或試算表權限`);
     throw new Error(`${label} 網路錯誤：${e.message}`);
   }
 
@@ -1178,13 +1182,34 @@ function runValidation() {
 // INIT
 // ═══════════════════════════════════════════════════════════════
 (async () => {
-  try { await syncAll(); } catch (e) { console.error('Init error:', e); }
+  // 強制保護：無論如何 splash 都會在 25 秒內消失
+  const forceHideSplash = setTimeout(() => {
+    const s = document.getElementById('splash');
+    if (s) { s.classList.add('out'); setTimeout(() => s.remove(), 600); }
+    document.getElementById('app').classList.add('v');
+    setSS('fail', '連線逾時');
+    document.getElementById('sb-text').textContent = '⚠️ 連線 Google Sheets 逾時。請確認：①試算表已設為「知道連結的人可以檢視」②網路正常後點「↻ 重新同步」';
+    render();
+  }, 25000);
+
+  try {
+    // 20 秒總體超時保護
+    await Promise.race([
+      syncAll(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('總連線逾時 20s')), 20000))
+    ]);
+  } catch (e) {
+    console.error('Init error:', e);
+    setSS('fail', '連線逾時');
+  }
+
+  clearTimeout(forceHideSplash);
   render();
-  runValidation();  // 自動執行驗證
+  runValidation();
   document.getElementById('app').classList.add('v');
   setTimeout(() => {
-    document.getElementById('splash').classList.add('out');
-    setTimeout(() => document.getElementById('splash').remove(), 600);
+    const s = document.getElementById('splash');
+    if (s) { s.classList.add('out'); setTimeout(() => s.remove(), 600); }
   }, 400);
 })();
 </script>
