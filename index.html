@@ -4,890 +4,951 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Tesla Model Y RWD — 能耗儀表板</title>
+<script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=Orbitron:wght@400;600;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
-/* ── THEME ── */
 :root{
-  --a:#38BDF8;--a4:#34D399;--a3:#FB923C;--a2:#818CF8;--ab:#7DD3FC;
+  --a:#38BDF8;--ab:#7DD3FC;--a2:#818CF8;--a4:#34D399;
   --bg:#090C14;--s1:#0F1420;--s2:#151B2E;--s3:#1C2438;
   --tx:#E2E8F4;--tm:#64748B;--td:#334155;
-  --hdr-bg:rgba(9,12,20,.92);--hdr-brd:rgba(56,189,248,.15);
+  --hdr-bg:rgba(9,12,20,0.93);--hdr-brd:rgba(56,189,248,0.15);
   --odo-c:#38BDF8;--odo-lc:#64748B;
   --shd:0 4px 24px rgba(56,189,248,.08),0 1px 4px rgba(0,0,0,.6);
-  --shd-h:0 8px 40px rgba(56,189,248,.20),0 2px 8px rgba(0,0,0,.7);
-  --gl:rgba(56,189,248,.04);
+  --shd-h:0 8px 40px rgba(56,189,248,.22),0 2px 8px rgba(0,0,0,.7);
+  --grid:rgba(56,189,248,.04);
 }
 [data-theme="light"]{
-  --bg:#F1F5FB;--s1:#FFF;--s2:#E8EFF9;--s3:#D6E4F4;
+  --bg:#F1F5FB;--s1:#fff;--s2:#E8EFF9;--s3:#D6E4F4;
   --tx:#0F172A;--tm:#475569;--td:#94A3B8;
-  --hdr-bg:rgba(241,245,251,.92);--hdr-brd:rgba(56,189,248,.25);
+  --hdr-bg:rgba(241,245,251,.93);--hdr-brd:rgba(56,189,248,.28);
   --odo-c:#0284C7;--odo-lc:#475569;
   --shd:0 4px 24px rgba(56,189,248,.10),0 1px 6px rgba(0,0,0,.06);
-  --shd-h:0 8px 40px rgba(56,189,248,.20),0 2px 10px rgba(0,0,0,.10);
-  --gl:rgba(56,189,248,.07);
+  --shd-h:0 8px 40px rgba(56,189,248,.22),0 2px 10px rgba(0,0,0,.10);
+  --grid:rgba(56,189,248,.07);
 }
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html{scroll-behavior:smooth;-webkit-tap-highlight-color:transparent}
-body{background:var(--bg);color:var(--tx);font-family:'Noto Sans TC',sans-serif;min-height:100vh;overflow-x:hidden;transition:background .35s,color .35s}
-body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
-  background-image:linear-gradient(var(--gl) 1px,transparent 1px),linear-gradient(90deg,var(--gl) 1px,transparent 1px);
-  background-size:48px 48px}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--tx);font-family:'Noto Sans TC',sans-serif;min-height:100vh;overflow-x:hidden;transition:background .35s,color .35s;}
+body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:48px 48px;}
 
-/* ── LOADING / ERROR SCREEN ── */
-#ls{position:fixed;inset:0;z-index:9999;background:#090C14;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.5rem;transition:opacity .5s}
-#ls.hide{opacity:0;pointer-events:none}
-.sp-ring{width:80px;height:80px;border-radius:50%;border:1.5px solid rgba(56,189,248,.22);display:flex;align-items:center;justify-content:center;position:relative;animation:spP 1.4s ease-in-out infinite}
-.sp-ring::before{content:'';position:absolute;inset:-10px;border-radius:50%;border:1px solid rgba(56,189,248,.09);animation:spR 2s ease-in-out infinite}
-@keyframes spP{0%,100%{box-shadow:0 0 0 0 rgba(56,189,248,.25)}50%{box-shadow:0 0 24px 6px rgba(56,189,248,.09)}}
-@keyframes spR{0%,100%{transform:scale(1);opacity:.3}50%{transform:scale(1.1);opacity:.08}}
-.sp-t{font-family:'Orbitron',monospace;font-size:clamp(.9rem,3.5vw,1.35rem);font-weight:700;color:#38BDF8;letter-spacing:.2em;text-align:center}
-.sp-s{font-family:'Space Mono',monospace;font-size:.6rem;color:rgba(56,189,248,.4);letter-spacing:.25em}
-.sp-bar-w{width:200px;height:2px;background:rgba(56,189,248,.1);border-radius:1px;overflow:hidden}
-.sp-bar{height:100%;width:0;background:linear-gradient(90deg,#38BDF8,#7DD3FC);animation:spL 2s cubic-bezier(.4,0,.2,1) forwards}
-@keyframes spL{0%{width:0}60%{width:72%}90%{width:96%}100%{width:100%}}
-
-#es{display:none;position:fixed;inset:0;z-index:9998;background:var(--bg);flex-direction:column;align-items:center;justify-content:center;gap:1rem}
-#es.show{display:flex}
-.e-ico{font-size:2.5rem}
-.e-ttl{font-family:'Orbitron',monospace;font-size:.9rem;color:#F87171;letter-spacing:.1em}
-.e-msg{font-size:.72rem;color:var(--tm);max-width:380px;text-align:center;line-height:1.8;font-family:'Space Mono',monospace}
-.e-btn{padding:.45rem 1.1rem;border:1px solid var(--a);border-radius:8px;background:transparent;color:var(--a);font-family:'Space Mono',monospace;font-size:.68rem;cursor:pointer;transition:all .18s}
-.e-btn:hover{background:rgba(56,189,248,.1)}
-
-#scan-line{position:fixed;left:0;right:0;height:1px;z-index:1;background:linear-gradient(90deg,transparent,rgba(56,189,248,.22),transparent);pointer-events:none;animation:scanMove 8s linear infinite;opacity:0;transition:opacity .4s}
-[data-theme="dark"] #scan-line{opacity:1}
+/* SPLASH */
+#splash{position:fixed;inset:0;z-index:9999;background:#090C14;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2rem;transition:opacity .5s,transform .5s;}
+#splash.out{opacity:0;transform:scale(1.03);pointer-events:none;}
+.sp-ring{width:84px;height:84px;border-radius:50%;border:1.5px solid rgba(56,189,248,.25);display:flex;align-items:center;justify-content:center;position:relative;animation:spP 1.4s ease-in-out infinite;}
+.sp-ring::before{content:'';position:absolute;inset:-10px;border-radius:50%;border:1px solid rgba(56,189,248,.10);animation:spR 2s ease-in-out infinite;}
+@keyframes spP{0%,100%{box-shadow:0 0 0 0 rgba(56,189,248,.25)}50%{box-shadow:0 0 28px 6px rgba(56,189,248,.10)}}
+@keyframes spR{0%,100%{transform:scale(1);opacity:.3}50%{transform:scale(1.12);opacity:.08}}
+.sp-t{font-family:'Orbitron',monospace;font-size:clamp(1rem,4vw,1.5rem);font-weight:700;color:#38BDF8;letter-spacing:.22em;text-align:center;}
+.sp-sub{font-family:'Space Mono',monospace;font-size:.68rem;color:rgba(56,189,248,.45);letter-spacing:.28em;}
+.sp-bw{width:220px;height:2px;background:rgba(56,189,248,.12);border-radius:1px;overflow:hidden;}
+.sp-b{height:100%;width:0;background:linear-gradient(90deg,#38BDF8,#7DD3FC);border-radius:1px;transition:width .4s ease;}
+.sp-st{font-family:'Space Mono',monospace;font-size:.6rem;color:rgba(56,189,248,.35);letter-spacing:.14em;}
+#scan-line{position:fixed;left:0;right:0;height:1px;z-index:1;background:linear-gradient(90deg,transparent,rgba(56,189,248,.25),transparent);pointer-events:none;animation:scanMove 8s linear infinite;opacity:0;transition:opacity .4s;}
+[data-theme="dark"] #scan-line{opacity:1;}
 @keyframes scanMove{0%{top:-2px}100%{top:100vh}}
 
-/* ── HEADER ── */
-#hdr{position:sticky;top:0;z-index:100;background:var(--hdr-bg);border-bottom:1px solid var(--hdr-brd);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);transition:background .35s,border-color .35s}
-.hi{max-width:1280px;margin:0 auto;padding:.85rem 1.25rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.7rem}
-.hbrand{display:flex;align-items:center;gap:.7rem}
-.tlogo{width:38px;height:38px;border-radius:9px;background:linear-gradient(135deg,var(--a),#0284C7);display:flex;align-items:center;justify-content:center;box-shadow:0 0 14px rgba(56,189,248,.28);flex-shrink:0}
-.tlogo svg{width:22px;height:22px;fill:#fff}
-.bn{font-family:'Orbitron',monospace;font-size:.86rem;font-weight:700;color:var(--tx);line-height:1.1}
-.bs{font-size:.56rem;color:var(--tm);letter-spacing:.13em;margin-top:1px}
-.hr{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap}
-.odo-b{text-align:right;padding:.38rem .72rem;border-radius:9px;background:var(--s2);border:1px solid var(--hdr-brd);transition:background .35s,border-color .35s}
-.odo-l{font-family:'Space Mono',monospace;font-size:.5rem;color:var(--odo-lc);letter-spacing:.14em;text-transform:uppercase}
-.odo-v{font-family:'Orbitron',monospace;font-size:1.35rem;font-weight:900;color:var(--odo-c);line-height:1;letter-spacing:-.02em}
-.odo-u{font-size:.52rem;color:var(--odo-lc)}
-.sc{display:flex;align-items:center;gap:5px;padding:.22rem .68rem;border-radius:999px;border:1px solid var(--hdr-brd);background:var(--s2);font-family:'Space Mono',monospace;font-size:.56rem;color:var(--tm);cursor:pointer;transition:all .18s}
-.sc:hover{border-color:var(--a);color:var(--a)}
-.sd{width:6px;height:6px;border-radius:50%;background:var(--td);flex-shrink:0}
-.sd.ok{background:#34D399;box-shadow:0 0 6px rgba(52,211,153,.5)}
-.sd.fail{background:#F87171}
-.sd.spin{background:var(--a);animation:ds .8s linear infinite}
-@keyframes ds{0%{opacity:1}50%{opacity:.2}100%{opacity:1}}
-.tbtn{width:36px;height:36px;border-radius:8px;border:1px solid var(--hdr-brd);background:var(--s2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.9rem;transition:all .2s cubic-bezier(.34,1.56,.64,1)}
-.tbtn:hover{border-color:var(--a);transform:scale(1.08)}
-.tbtn:active{transform:scale(.94)}
+/* HEADER */
+#main-header{position:sticky;top:0;z-index:100;background:var(--hdr-bg);border-bottom:1px solid var(--hdr-brd);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);transition:background .35s,border-color .35s;}
+.hdr-in{max-width:1280px;margin:0 auto;padding:.9rem 1.25rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;}
+.hdr-brand{display:flex;align-items:center;gap:.75rem;}
+.tesla-t{width:38px;height:38px;border-radius:9px;flex-shrink:0;background:linear-gradient(135deg,var(--a),#0284C7);display:flex;align-items:center;justify-content:center;box-shadow:0 0 14px rgba(56,189,248,.3);}
+.tesla-t svg{width:22px;height:22px;fill:#fff;}
+.brand-name{font-family:'Orbitron',monospace;font-size:.88rem;font-weight:700;color:var(--tx);line-height:1.1;}
+.brand-sub{font-size:.58rem;color:var(--tm);letter-spacing:.14em;margin-top:1px;}
+.odo-block{text-align:right;padding:.4rem .75rem;border-radius:10px;background:var(--s2);border:1px solid var(--hdr-brd);transition:background .35s,border-color .35s;}
+.odo-lbl{font-family:'Space Mono',monospace;font-size:.52rem;color:var(--odo-lc);letter-spacing:.15em;text-transform:uppercase;}
+.odo-val{font-family:'Orbitron',monospace;font-size:1.4rem;font-weight:900;color:var(--odo-c);line-height:1;letter-spacing:-.02em;transition:color .35s;}
+.odo-unit{font-size:.55rem;color:var(--odo-lc);}
+.theme-btn{width:38px;height:38px;border-radius:9px;border:1px solid var(--hdr-brd);background:var(--s2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.95rem;transition:all .2s cubic-bezier(.34,1.56,.64,1);}
+.theme-btn:hover{border-color:var(--a);transform:scale(1.08);}
+.sync-chip{display:flex;align-items:center;gap:5px;padding:.25rem .7rem;border-radius:999px;border:1px solid var(--hdr-brd);background:var(--s2);font-family:'Space Mono',monospace;font-size:.58rem;color:var(--tm);cursor:pointer;transition:all .2s;white-space:nowrap;}
+.sync-chip:hover{border-color:var(--a);color:var(--a);}
+.sdot{width:6px;height:6px;border-radius:50%;background:var(--td);flex-shrink:0;}
+.sdot.ok{background:#34D399;box-shadow:0 0 6px rgba(52,211,153,.5);}
+.sdot.fail{background:#F87171;}
+.sdot.spin{background:var(--a);animation:dSpin .8s linear infinite;}
+@keyframes dSpin{0%{opacity:1}50%{opacity:.2}100%{opacity:1}}
 
-/* ── FILTER BAR ── */
-.fw{position:relative;z-index:9;border-bottom:1px solid rgba(56,189,248,.08)}
-.fi{max-width:1280px;margin:0 auto;padding:.6rem 1.25rem;display:flex;align-items:center;gap:.42rem;flex-wrap:wrap}
-.fl{font-family:'Space Mono',monospace;font-size:.57rem;color:var(--tm);letter-spacing:.12em;margin-right:.2rem}
-.pill{padding:.26rem .82rem;border:1px solid rgba(56,189,248,.17);border-radius:999px;background:transparent;color:var(--tm);font-family:'Space Mono',monospace;font-size:.66rem;cursor:pointer;white-space:nowrap;transition:all .17s cubic-bezier(.34,1.56,.64,1)}
-.pill:hover{border-color:var(--a);color:var(--a);transform:translateY(-1px)}
-.pill:active{transform:scale(.95)}
-.pill.on{background:var(--a);border-color:var(--a);color:#090C14;font-weight:700;box-shadow:0 0 14px rgba(56,189,248,.38)}
-[data-theme="light"] .pill.on{color:#fff}
-.pb{margin-left:auto;font-family:'Space Mono',monospace;font-size:.56rem;color:var(--td)}
+/* FILTER */
+.fw{position:relative;z-index:9;border-bottom:1px solid rgba(56,189,248,.08);}
+.fi{max-width:1280px;margin:0 auto;padding:.65rem 1.25rem;display:flex;align-items:center;gap:.45rem;flex-wrap:wrap;}
+.fl{font-family:'Space Mono',monospace;font-size:.58rem;color:var(--tm);letter-spacing:.12em;margin-right:.2rem;}
+.pill{padding:.28rem .85rem;border:1px solid rgba(56,189,248,.18);border-radius:999px;background:transparent;color:var(--tm);font-family:'Space Mono',monospace;font-size:.68rem;cursor:pointer;white-space:nowrap;transition:all .18s cubic-bezier(.34,1.56,.64,1);}
+.pill:hover{border-color:var(--a);color:var(--a);transform:translateY(-1px);}
+.pill:active{transform:scale(.95);}
+.pill.active{background:var(--a);border-color:var(--a);color:#090C14;font-weight:700;box-shadow:0 0 14px rgba(56,189,248,.4);}
+[data-theme="light"] .pill.active{color:#fff;}
+.pb{margin-left:auto;font-family:'Space Mono',monospace;font-size:.58rem;color:var(--td);}
 
-/* ── APP ── */
-#app{position:relative;z-index:1;max-width:1280px;margin:0 auto;padding:1.4rem 1.25rem 3rem;opacity:0;transition:opacity .45s}
-#app.v{opacity:1}
-.sl{font-family:'Space Mono',monospace;font-size:.57rem;font-weight:700;color:var(--a);letter-spacing:.2em;text-transform:uppercase;margin-bottom:.68rem;display:flex;align-items:center;gap:.5rem}
-.sl::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,rgba(56,189,248,.24),transparent)}
-.sb{margin-bottom:1.65rem}
+/* TOAST */
+#toast{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%) translateY(20px);z-index:9998;padding:.75rem 1.25rem;border-radius:12px;background:var(--s2);border:1px solid rgba(56,189,248,.2);font-family:'Space Mono',monospace;font-size:.68rem;color:var(--tx);box-shadow:0 8px 32px rgba(0,0,0,.4);display:flex;align-items:center;gap:.6rem;opacity:0;transition:all .3s;pointer-events:none;max-width:90vw;}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+#toast.err{border-color:rgba(248,113,113,.4);}
+#toast.ok{border-color:rgba(52,211,153,.4);}
 
-/* ── TABS ── */
-.tab-bar{display:flex;gap:.38rem;margin-bottom:1rem;flex-wrap:wrap}
-.tab{padding:.28rem .82rem;border:1px solid rgba(56,189,248,.17);border-radius:999px;background:transparent;color:var(--tm);font-family:'Space Mono',monospace;font-size:.64rem;cursor:pointer;transition:all .17s;white-space:nowrap}
-.tab:hover{border-color:var(--a);color:var(--a)}
-.tab.on{background:rgba(56,189,248,.1);border-color:var(--a);color:var(--a);font-weight:700}
-.tp{display:none}
-.tp.on{display:block}
+/* APP */
+#app{position:relative;z-index:1;max-width:1280px;margin:0 auto;padding:1.5rem 1.25rem 3rem;opacity:0;transition:opacity .45s;}
+#app.v{opacity:1;}
+.sl{font-family:'Space Mono',monospace;font-size:.58rem;font-weight:700;color:var(--a);letter-spacing:.2em;text-transform:uppercase;margin-bottom:.7rem;display:flex;align-items:center;gap:.5rem;}
+.sl::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,rgba(56,189,248,.25),transparent);}
+.sb{margin-bottom:1.7rem;}
+.tab-bar{display:flex;gap:.4rem;margin-bottom:1rem;flex-wrap:wrap;}
+.tab{padding:.3rem .85rem;border:1px solid rgba(56,189,248,.18);border-radius:999px;background:transparent;color:var(--tm);font-family:'Space Mono',monospace;font-size:.65rem;cursor:pointer;transition:all .18s;white-space:nowrap;}
+.tab:hover{border-color:var(--a);color:var(--a);}
+.tab.active{background:rgba(56,189,248,.12);border-color:var(--a);color:var(--a);font-weight:700;}
+.tab-panel{display:none;}
+.tab-panel.active{display:block;}
+.kg{display:grid;grid-template-columns:repeat(2,1fr);gap:.7rem;}
+@media(min-width:480px){.kg{grid-template-columns:repeat(3,1fr);}}
+@media(min-width:768px){.kg{grid-template-columns:repeat(4,1fr);}}
+.kc{background:var(--s1);border:1px solid rgba(56,189,248,.10);border-radius:14px;padding:1rem 1.05rem .9rem;position:relative;overflow:hidden;box-shadow:var(--shd);cursor:pointer;transition:all .2s cubic-bezier(.34,1.56,.64,1);}
+.kc::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--kca,var(--a));opacity:.9;}
+.kc::after{content:'';position:absolute;top:-36px;right:-16px;width:72px;height:72px;border-radius:50%;background:var(--kca,var(--a));opacity:.04;}
+.kc:hover{box-shadow:var(--shd-h);transform:translateY(-3px) scale(1.02);border-color:rgba(56,189,248,.25);}
+.kc:active{transform:scale(.97);}
+.ki{font-size:.9rem;margin-bottom:.45rem;}
+.kl{font-size:.57rem;color:var(--tm);letter-spacing:.1em;text-transform:uppercase;font-family:'Space Mono',monospace;margin-bottom:.3rem;}
+.kv{font-family:'Orbitron',monospace;font-size:clamp(1rem,3vw,1.4rem);font-weight:700;color:var(--tx);line-height:1;letter-spacing:-.02em;}
+.ku{font-size:.56rem;color:var(--tm);margin-top:.22rem;font-family:'Space Mono',monospace;}
+.hr{display:grid;grid-template-columns:1fr;gap:.7rem;margin-bottom:1.5rem;}
+@media(min-width:768px){.hr{grid-template-columns:1fr 1fr;}}
+.hc{background:var(--s1);border:1px solid rgba(56,189,248,.10);border-radius:16px;padding:1.4rem;box-shadow:var(--shd);transition:background .35s;}
+.hbn{font-family:'Orbitron',monospace;font-size:clamp(2.2rem,7vw,4rem);font-weight:900;color:var(--a);line-height:1;letter-spacing:-.04em;}
+.hbs{font-size:.7rem;color:var(--tm);margin-top:.35rem;letter-spacing:.07em;}
+.ms{background:var(--s2);border-radius:9px;padding:.55rem .7rem;transition:background .35s;}
+.msl{font-size:.53rem;color:var(--tm);font-family:'Space Mono',monospace;}
+.msv{font-family:'Orbitron',monospace;font-size:.95rem;font-weight:700;color:var(--a);margin-top:2px;}
+.msu{font-size:.52rem;color:var(--td);font-family:'Space Mono',monospace;}
+.rw{position:relative;display:inline-flex;align-items:center;justify-content:center;}
+.rs{width:116px;height:116px;transform:rotate(-90deg);}
+.rt{fill:none;stroke:rgba(56,189,248,.08);stroke-width:8;}
+.rf-super{fill:none;stroke:var(--a);stroke-width:8;stroke-linecap:round;stroke-dasharray:283;stroke-dashoffset:283;transition:stroke-dashoffset 1.8s cubic-bezier(.4,0,.2,1);}
+.rf-slow{fill:none;stroke:#34D399;stroke-width:8;stroke-linecap:round;stroke-dasharray:283;stroke-dashoffset:283;transition:stroke-dashoffset 1.8s .2s cubic-bezier(.4,0,.2,1);}
+.rc{position:absolute;text-align:center;}
+.rp{font-family:'Orbitron',monospace;font-size:1.1rem;font-weight:700;color:var(--tx);}
+.rl{font-size:.52rem;color:var(--tm);font-family:'Space Mono',monospace;}
+.cc{background:var(--s1);border:1px solid rgba(56,189,248,.10);border-radius:14px;padding:1.2rem;box-shadow:var(--shd);transition:background .35s;}
+.ct{font-size:.65rem;color:var(--tm);font-family:'Space Mono',monospace;margin-bottom:.65rem;letter-spacing:.08em;}
+.cg2{display:grid;grid-template-columns:1fr;gap:.7rem;margin-bottom:1.5rem;}
+@media(min-width:768px){.cg2{grid-template-columns:1fr 1fr;}}
+.legend{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:7px;font-size:.61rem;color:var(--tm);font-family:'Space Mono',monospace;}
+.ld{width:8px;height:8px;border-radius:2px;display:inline-block;margin-right:4px;}
+.tw{background:var(--s1);border:1px solid rgba(56,189,248,.10);border-radius:14px;overflow:hidden;box-shadow:var(--shd);margin-bottom:1.5rem;}
+.th{padding:.9rem 1.2rem .7rem;border-bottom:1px solid rgba(56,189,248,.07);font-family:'Space Mono',monospace;font-size:.58rem;color:var(--tm);}
+.sx{overflow-x:auto;}
+.dt{width:100%;border-collapse:collapse;font-size:.71rem;}
+.dt th{padding:.48rem .7rem;text-align:right;font-family:'Space Mono',monospace;font-size:.56rem;font-weight:400;color:var(--tm);letter-spacing:.08em;border-bottom:1px solid rgba(56,189,248,.07);white-space:nowrap;}
+.dt th:first-child{text-align:left;}
+.dt td{padding:.48rem .7rem;text-align:right;border-bottom:1px solid rgba(56,189,248,.04);color:var(--tx);white-space:nowrap;transition:background .12s;}
+.dt td:first-child{text-align:left;color:var(--tm);font-family:'Space Mono',monospace;font-size:.62rem;}
+.dt tr:last-child td{border-bottom:none;}
+.dt tr:hover td{background:rgba(56,189,248,.04);}
+.ib{display:inline-block;height:3px;border-radius:2px;vertical-align:middle;margin-right:4px;background:var(--a);opacity:.55;}
+.eb{display:inline-block;padding:1px 6px;border-radius:4px;font-family:'Space Mono',monospace;font-size:.58rem;font-weight:700;}
+.eg{background:rgba(52,211,153,.12);color:#34D399;}
+.em{background:rgba(250,204,21,.10);color:#FACC15;}
+.ep{background:rgba(248,113,113,.08);color:#F87171;}
+.sg{display:grid;grid-template-columns:repeat(2,1fr);gap:.6rem;}
+@media(min-width:480px){.sg{grid-template-columns:repeat(3,1fr);}}
+@media(min-width:768px){.sg{grid-template-columns:repeat(4,1fr);}}
+.scard{background:var(--s1);border:1px solid rgba(56,189,248,.10);border-radius:11px;padding:.8rem .9rem;transition:all .18s cubic-bezier(.34,1.56,.64,1);cursor:pointer;}
+.scard:hover{transform:translateY(-2px) scale(1.02);border-color:rgba(56,189,248,.28);box-shadow:var(--shd-h);}
+.scard:active{transform:scale(.97);}
+.srk{font-family:'Orbitron',monospace;font-size:.52rem;color:var(--td);margin-bottom:.28rem;}
+.snm{font-size:.66rem;color:var(--tm);margin-bottom:.28rem;line-height:1.3;}
+.scn{font-family:'Orbitron',monospace;font-size:1.2rem;font-weight:700;color:var(--tx);line-height:1;}
+.sdt{font-size:.56rem;color:var(--td);margin-top:.18rem;font-family:'Space Mono',monospace;}
 
-/* ── KPI ── */
-.kg{display:grid;grid-template-columns:repeat(2,1fr);gap:.65rem}
-@media(min-width:480px){.kg{grid-template-columns:repeat(3,1fr)}}
-@media(min-width:768px){.kg{grid-template-columns:repeat(4,1fr)}}
-.kc{background:var(--s1);border:1px solid rgba(56,189,248,.09);border-radius:13px;padding:.95rem 1rem .88rem;position:relative;overflow:hidden;box-shadow:var(--shd);cursor:pointer;transition:all .2s cubic-bezier(.34,1.56,.64,1)}
-.kc::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--kca,var(--a));opacity:.9}
-.kc::after{content:'';position:absolute;top:-34px;right:-14px;width:68px;height:68px;border-radius:50%;background:var(--kca,var(--a));opacity:.04}
-.kc:hover{box-shadow:var(--shd-h);transform:translateY(-3px) scale(1.02);border-color:rgba(56,189,248,.24)}
-.kc:active{transform:scale(.97)}
-.ki{font-size:.85rem;margin-bottom:.42rem}
-.kl{font-size:.55rem;color:var(--tm);letter-spacing:.1em;text-transform:uppercase;font-family:'Space Mono',monospace;margin-bottom:.28rem}
-.kv{font-family:'Orbitron',monospace;font-size:clamp(.95rem,2.8vw,1.35rem);font-weight:700;color:var(--tx);line-height:1;letter-spacing:-.02em}
-.ku{font-size:.54rem;color:var(--tm);margin-top:.2rem;font-family:'Space Mono',monospace}
+/* STATUS & DEBUG */
+.status-bar{background:var(--s1);border:1px solid rgba(56,189,248,.12);border-radius:12px;padding:.75rem 1.2rem;box-shadow:var(--shd);margin-bottom:1.5rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;}
+.sb-text{font-family:'Space Mono',monospace;font-size:.6rem;color:var(--tm);}
+.sb-url{font-size:.54rem;color:var(--td);margin-top:2px;}
+.sb-btn{padding:.32rem .85rem;border:1px solid var(--a);border-radius:8px;background:transparent;color:var(--a);font-family:'Space Mono',monospace;font-size:.63rem;cursor:pointer;transition:all .18s;white-space:nowrap;}
+.sb-btn:hover{background:rgba(56,189,248,.1);}
+/* ★ ERROR PANEL */
+#error-panel{display:none;position:relative;z-index:1;max-width:1280px;margin:0 auto;padding:0 1.25rem 1.5rem;}
+.err-box{background:rgba(248,113,113,.06);border:1px solid rgba(248,113,113,.3);border-radius:16px;padding:1.5rem;}
+.err-title{font-family:'Orbitron',monospace;font-size:1rem;font-weight:700;color:#F87171;margin-bottom:1rem;}
+.err-step{background:var(--s2);border-radius:10px;padding:1rem 1.1rem;margin-bottom:.75rem;border-left:3px solid var(--a);}
+.err-step-num{font-family:'Space Mono',monospace;font-size:.65rem;color:var(--a);margin-bottom:.4rem;font-weight:700;}
+.err-step-txt{font-size:.75rem;color:var(--tx);line-height:1.6;}
+.err-step-code{font-family:'Space Mono',monospace;font-size:.65rem;background:var(--s3);padding:.3rem .6rem;border-radius:6px;margin-top:.4rem;color:var(--a);word-break:break-all;}
 
-/* ── HERO ROW ── */
-.hrow{display:grid;grid-template-columns:1fr;gap:.65rem;margin-bottom:1.4rem}
-@media(min-width:768px){.hrow{grid-template-columns:1fr 1fr}}
-.hc{background:var(--s1);border:1px solid rgba(56,189,248,.09);border-radius:15px;padding:1.35rem;box-shadow:var(--shd);position:relative;overflow:hidden;transition:background .35s,border-color .35s}
-.hbn{font-family:'Orbitron',monospace;font-size:clamp(2rem,6.5vw,3.8rem);font-weight:900;color:var(--a);line-height:1;letter-spacing:-.04em}
-.hbs{font-size:.67rem;color:var(--tm);margin-top:.32rem;letter-spacing:.07em}
-.ms{background:var(--s2);border-radius:8px;padding:.5rem .68rem;transition:background .35s}
-.msl{font-size:.51rem;color:var(--tm);font-family:'Space Mono',monospace}
-.msv{font-family:'Orbitron',monospace;font-size:.9rem;font-weight:700;color:var(--a);margin-top:2px}
-.msu{font-size:.5rem;color:var(--td);font-family:'Space Mono',monospace}
-.rw{position:relative;display:inline-flex;align-items:center;justify-content:center}
-.rs{width:112px;height:112px;transform:rotate(-90deg)}
-.rt{fill:none;stroke:rgba(56,189,248,.07);stroke-width:8}
-.rf-s{fill:none;stroke:var(--a);stroke-width:8;stroke-linecap:round;stroke-dasharray:283;stroke-dashoffset:283;transition:stroke-dashoffset 1.8s cubic-bezier(.4,0,.2,1)}
-.rf-l{fill:none;stroke:#34D399;stroke-width:8;stroke-linecap:round;stroke-dasharray:283;stroke-dashoffset:283;transition:stroke-dashoffset 1.8s .2s cubic-bezier(.4,0,.2,1)}
-.rc{position:absolute;text-align:center}
-.rp{font-family:'Orbitron',monospace;font-size:1.05rem;font-weight:700;color:var(--tx)}
-.rl{font-size:.5rem;color:var(--tm);font-family:'Space Mono',monospace}
-
-/* ── CHART CARDS ── */
-.cc{background:var(--s1);border:1px solid rgba(56,189,248,.09);border-radius:13px;padding:1.15rem;box-shadow:var(--shd);transition:background .35s}
-.ct{font-size:.63rem;color:var(--tm);font-family:'Space Mono',monospace;margin-bottom:.6rem;letter-spacing:.08em}
-.cg2{display:grid;grid-template-columns:1fr;gap:.65rem;margin-bottom:1.4rem}
-@media(min-width:768px){.cg2{grid-template-columns:1fr 1fr}}
-.leg{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:6px;font-size:.59rem;color:var(--tm);font-family:'Space Mono',monospace}
-.ld{width:8px;height:8px;border-radius:2px;display:inline-block;margin-right:4px}
-
-/* ── TABLE ── */
-.tw{background:var(--s1);border:1px solid rgba(56,189,248,.09);border-radius:13px;overflow:hidden;box-shadow:var(--shd);margin-bottom:1.4rem;transition:background .35s}
-.th{padding:.85rem 1.15rem .68rem;border-bottom:1px solid rgba(56,189,248,.07);font-family:'Space Mono',monospace;font-size:.57rem;color:var(--tm);letter-spacing:.09em}
-.sx{overflow-x:auto}
-.dt{width:100%;border-collapse:collapse;font-size:.7rem}
-.dt th{padding:.46rem .68rem;text-align:right;font-family:'Space Mono',monospace;font-size:.54rem;font-weight:400;color:var(--tm);letter-spacing:.08em;border-bottom:1px solid rgba(56,189,248,.07);white-space:nowrap}
-.dt th:first-child{text-align:left}
-.dt td{padding:.46rem .68rem;text-align:right;border-bottom:1px solid rgba(56,189,248,.04);color:var(--tx);white-space:nowrap;transition:background .12s}
-.dt td:first-child{text-align:left;color:var(--tm);font-family:'Space Mono',monospace;font-size:.6rem}
-.dt tr:last-child td{border-bottom:none}
-.dt tr:hover td{background:rgba(56,189,248,.04)}
-.ib{display:inline-block;height:3px;border-radius:2px;vertical-align:middle;margin-right:4px;background:var(--a);opacity:.5}
-.eb{display:inline-block;padding:1px 5px;border-radius:4px;font-family:'Space Mono',monospace;font-size:.56rem;font-weight:700}
-.eg{background:rgba(52,211,153,.12);color:#34D399}
-.em{background:rgba(250,204,21,.10);color:#FACC15}
-.ep{background:rgba(248,113,113,.08);color:#F87171}
-
-/* ── STATION ── */
-.sg{display:grid;grid-template-columns:repeat(2,1fr);gap:.58rem}
-@media(min-width:480px){.sg{grid-template-columns:repeat(3,1fr)}}
-@media(min-width:768px){.sg{grid-template-columns:repeat(4,1fr)}}
-.scard{background:var(--s1);border:1px solid rgba(56,189,248,.09);border-radius:10px;padding:.76rem .86rem;transition:all .17s cubic-bezier(.34,1.56,.64,1);cursor:pointer}
-.scard:hover{transform:translateY(-2px) scale(1.02);border-color:rgba(56,189,248,.26);box-shadow:var(--shd-h)}
-.scard:active{transform:scale(.97)}
-.srk{font-family:'Orbitron',monospace;font-size:.5rem;color:var(--td);margin-bottom:.26rem}
-.snm{font-size:.63rem;color:var(--tm);margin-bottom:.26rem;line-height:1.3}
-.scn{font-family:'Orbitron',monospace;font-size:1.15rem;font-weight:700;color:var(--tx);line-height:1}
-.sdt{font-size:.54rem;color:var(--td);margin-top:.17rem;font-family:'Space Mono',monospace}
-
-::-webkit-scrollbar{width:4px;height:4px}
-::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:rgba(56,189,248,.18);border-radius:2px}
-footer{position:relative;z-index:1;text-align:center;padding:1.4rem;font-family:'Space Mono',monospace;font-size:.54rem;color:var(--td);border-top:1px solid rgba(56,189,248,.06);letter-spacing:.07em}
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:rgba(56,189,248,.2);border-radius:2px;}
+footer{position:relative;z-index:1;text-align:center;padding:1.5rem;font-family:'Space Mono',monospace;font-size:.56rem;color:var(--td);border-top:1px solid rgba(56,189,248,.06);letter-spacing:.07em;}
 </style>
 </head>
 <body>
 
-<!-- ── LOADING ── -->
-<div id="ls">
+<div id="toast"><span id="ti">i</span> <span id="tm2"></span></div>
+
+<div id="splash">
   <div class="sp-ring">
-    <svg viewBox="0 0 100 100" width="44" height="44" xmlns="http://www.w3.org/2000/svg">
+    <svg viewBox="0 0 100 100" width="46" height="46" xmlns="http://www.w3.org/2000/svg">
       <path d="M50 8C30 8 15 20 10 35L30 35C33 28 41 24 50 24C59 24 67 28 70 35L90 35C85 20 70 8 50 8Z" fill="#38BDF8"/>
-      <path d="M50 42L50 92M30 35L50 42L70 35" stroke="rgba(56,189,248,.55)" stroke-width="4" fill="none" stroke-linecap="round"/>
+      <path d="M50 42L50 92M30 35L50 42L70 35" stroke="rgba(56,189,248,.6)" stroke-width="4" fill="none" stroke-linecap="round"/>
     </svg>
   </div>
   <div style="text-align:center">
     <div class="sp-t">MODEL Y RWD</div>
-    <div class="sp-s" style="margin-top:4px">EBC-0289 · 連線 Google Sheets</div>
+    <div class="sp-sub" style="margin-top:5px">EBC-0289 · 數據分析系統</div>
   </div>
-  <div style="text-align:center">
-    <div class="sp-bar-w"><div class="sp-bar"></div></div>
-    <div class="sp-s" style="margin-top:8px" id="spst">讀取充電記錄...</div>
+  <div style="text-align:center;width:100%">
+    <div class="sp-bw" style="margin:0 auto"><div class="sp-b" id="sp-bar"></div></div>
+    <div class="sp-st" style="margin-top:8px" id="spst">連線 Google Sheets...</div>
   </div>
-</div>
-
-<!-- ── ERROR ── -->
-<div id="es">
-  <div class="e-ico">⚠️</div>
-  <div class="e-ttl">資料讀取失敗</div>
-  <div class="e-msg" id="emsg"></div>
-  <button class="e-btn" onclick="location.reload()">重新整理</button>
 </div>
 
 <div id="scan-line"></div>
 
-<!-- ── HEADER ── -->
-<div id="hdr">
-  <div class="hi">
-    <div class="hbrand">
-      <div class="tlogo">
+<!-- HEADER -->
+<div id="main-header">
+  <div class="hdr-in">
+    <div class="hdr-brand">
+      <div class="tesla-t">
         <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
           <path d="M50 8C30 8 15 20 10 35L30 35C33 28 41 24 50 24C59 24 67 28 70 35L90 35C85 20 70 8 50 8Z" fill="#fff"/>
-          <path d="M50 42L50 92M30 35L50 42L70 35" stroke="rgba(255,255,255,.6)" stroke-width="4" fill="none" stroke-linecap="round"/>
+          <path d="M50 42L50 92M30 35L50 42L70 35" stroke="rgba(255,255,255,.65)" stroke-width="4" fill="none" stroke-linecap="round"/>
         </svg>
       </div>
       <div>
-        <div class="bn">MODEL Y RWD</div>
-        <div class="bs">EBC-0289 · 能耗儀表板</div>
+        <div class="brand-name">MODEL Y RWD</div>
+        <div class="brand-sub">EBC-0289 · 能耗儀表板</div>
       </div>
     </div>
-    <div class="hr">
-      <div class="sc" id="sc" onclick="loadData()" title="重新從 Google Sheets 同步">
-        <div class="sd" id="sd"></div>
-        <span id="sl2">讀取中...</span>
+    <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;">
+      <div class="sync-chip" onclick="manualSync()" title="重新同步">
+        <div class="sdot" id="sdot"></div>
+        <span id="slbl">讀取中...</span>
       </div>
-      <div class="odo-b">
-        <div class="odo-l">儀表里程</div>
-        <div class="odo-v" id="hodo">—</div>
-        <div class="odo-u">公里</div>
+      <div class="odo-block">
+        <div class="odo-lbl">儀表里程</div>
+        <div class="odo-val" id="hodo">—</div>
+        <div class="odo-unit">公里</div>
       </div>
-      <button class="tbtn" onclick="toggleTheme()" title="切換深/淺色" id="tbtn">🌙</button>
+      <button class="theme-btn" onclick="toggleTheme()" title="切換深/淺色">🌙</button>
     </div>
   </div>
 </div>
 
-<!-- ── FILTER BAR ── -->
+<!-- FILTER BAR -->
 <div class="fw">
   <div class="fi">
     <span class="fl">時段</span>
-    <button class="pill on" data-p="all">全部</button>
-    <button class="pill" data-p="2024">2024</button>
-    <button class="pill" data-p="2025">2025</button>
-    <button class="pill" data-p="2026">2026</button>
+    <button class="pill active" data-period="all">全部</button>
+    <button class="pill" data-period="2024">2024</button>
+    <button class="pill" data-period="2025">2025</button>
+    <button class="pill" data-period="2026">2026</button>
     <span class="pb" id="pb">— 筆</span>
   </div>
 </div>
 
-<!-- ── APP ── -->
+<!-- ★ ERROR PANEL — 讀取失敗時顯示 -->
+<div id="error-panel">
+  <div class="err-box">
+    <div class="err-title">⚠️ 資料讀取失敗 — 請依步驟排查</div>
+
+    <div class="err-step">
+      <div class="err-step-num">步驟 1 — 確認 Google Sheets 已設為「知道連結的人可以檢視」</div>
+      <div class="err-step-txt">
+        打開 Google Sheets → 右上角「共用」→ 一般存取 → 選擇「<strong>知道連結的人</strong>」→ 角色選「<strong>檢視者</strong>」→ 完成
+      </div>
+    </div>
+
+    <div class="err-step">
+      <div class="err-step-num">步驟 2 — 確認工作表名稱完全一致</div>
+      <div class="err-step-txt">
+        試算表底部的分頁名稱必須是：
+      </div>
+      <div class="err-step-code">充電記錄</div>
+      <div class="err-step-code">每日里程</div>
+      <div class="err-step-code">月度摘要</div>
+    </div>
+
+    <div class="err-step">
+      <div class="err-step-num">步驟 3 — 設定完成後，點下方按鈕重新同步</div>
+      <div class="err-step-txt">設定完成後等 30 秒讓 Google 更新快取，然後點擊重新同步。</div>
+      <div style="margin-top:.75rem">
+        <button class="sb-btn" onclick="manualSync()" style="font-size:.75rem;padding:.5rem 1.2rem">↻ 重新同步資料</button>
+      </div>
+    </div>
+
+    <div class="err-step" id="err-detail-box" style="display:none;">
+      <div class="err-step-num">錯誤詳情（供排查）</div>
+      <div class="err-step-code" id="err-detail-txt" style="font-size:.6rem;line-height:1.6;white-space:pre-wrap;word-break:break-all"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
 <div id="app">
+  <div class="status-bar">
+    <div>
+      <div class="sb-text" id="sb-text">正在從 Google Sheets 讀取資料...</div>
+      <div class="sb-url">資料源：Google Sheets gviz API · EBC-0289_20250820 · 自動同步（無需 GAS）</div>
+    </div>
+    <button class="sb-btn" onclick="manualSync()">↻ 重新同步</button>
+  </div>
 
   <div class="tab-bar">
-    <button class="tab on" data-t="charging" onclick="switchTab('charging',this)">⚡ 充電記錄</button>
-    <button class="tab" data-t="daily" onclick="switchTab('daily',this)">📈 每日里程</button>
-    <button class="tab" data-t="monthly" onclick="switchTab('monthly',this)">📊 月度摘要</button>
+    <button class="tab active" data-tab="charging" onclick="switchTab('charging',this)">⚡ 充電記錄</button>
+    <button class="tab" data-tab="daily" onclick="switchTab('daily',this)">📈 每日里程</button>
+    <button class="tab" data-tab="monthly" onclick="switchTab('monthly',this)">📊 月度摘要</button>
   </div>
 
   <!-- TAB: 充電記錄 -->
-  <div class="tp on" id="t-charging">
-    <div class="sb">
-      <div class="sl">核心指標</div>
-      <div class="kg" id="kgrid"></div>
-    </div>
+  <div class="tab-panel active" id="tab-charging">
+    <div class="sb"><div class="sl">核心指標</div><div class="kg" id="kgrid"></div></div>
     <div class="sb">
       <div class="sl">能耗概覽</div>
-      <div class="hrow">
-        <!-- 大里程數字 -->
+      <div class="hr">
         <div class="hc">
-          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;">
             <div style="flex:1">
-              <div style="font-family:'Space Mono',monospace;font-size:.53rem;color:var(--tm);letter-spacing:.13em;margin-bottom:.45rem">購入後總行駛里程</div>
+              <div style="font-family:'Space Mono',monospace;font-size:.56rem;color:var(--tm);letter-spacing:.14em;margin-bottom:.5rem">購入後總行駛里程</div>
               <div class="hbn" id="hkm">—</div>
               <div class="hbs">km · since 2024/08/20</div>
-              <div style="margin-top:.9rem;display:grid;grid-template-columns:1fr 1fr;gap:.45rem">
+              <div style="margin-top:1rem;display:grid;grid-template-columns:1fr 1fr;gap:.5rem;">
                 <div class="ms"><div class="msl">平均電耗</div><div class="msv" id="heff">—</div><div class="msu">km/kWh</div></div>
                 <div class="ms"><div class="msl">每公里費率</div><div class="msv" id="hrate" style="color:#34D399">—</div><div class="msu">NT$/km</div></div>
               </div>
             </div>
-            <div style="display:flex;flex-direction:column;align-items:center;gap:3px;opacity:.13;flex-shrink:0;margin-left:.5rem">
-              <div style="font-family:'Orbitron',monospace;font-size:.42rem;color:var(--a);letter-spacing:.2em">ODO</div>
-              <div style="width:2px;height:56px;background:linear-gradient(to bottom,var(--a),transparent);border-radius:2px"></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px;opacity:.15;flex-shrink:0;margin-left:.5rem">
+              <div style="font-family:'Orbitron',monospace;font-size:.44rem;color:var(--a);letter-spacing:.2em">ODO</div>
+              <div style="width:2px;height:60px;background:linear-gradient(to bottom,var(--a),transparent);border-radius:2px"></div>
             </div>
           </div>
         </div>
-        <!-- 超/慢充 ring -->
-        <div class="hc" style="display:flex;align-items:center;gap:1.3rem;flex-wrap:wrap">
+        <div class="hc" style="display:flex;align-items:center;gap:1.4rem;flex-wrap:wrap;">
           <div class="rw">
             <svg class="rs" viewBox="0 0 100 100">
               <circle class="rt" cx="50" cy="50" r="45"/>
-              <circle class="rf-l" cx="50" cy="50" r="45" id="ring-l"/>
-              <circle class="rf-s" cx="50" cy="50" r="45" id="ring-s"/>
+              <circle class="rf-slow" cx="50" cy="50" r="45" id="rslow"/>
+              <circle class="rf-super" cx="50" cy="50" r="45" id="rsuper"/>
             </svg>
             <div class="rc"><div class="rp" id="rpct">—</div><div class="rl">超充佔比</div></div>
           </div>
-          <div style="flex:1;min-width:125px">
-            <div style="font-family:'Space Mono',monospace;font-size:.53rem;color:var(--tm);margin-bottom:.65rem;letter-spacing:.07em">充電類型分析</div>
-            <div style="margin-bottom:.55rem">
-              <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px">
-                <span style="display:flex;align-items:center;gap:5px;font-size:.64rem;color:var(--tx)"><span style="width:7px;height:7px;border-radius:2px;background:var(--a);display:inline-block"></span>超充</span>
-                <span style="font-family:'Orbitron',monospace;font-size:.75rem;font-weight:700;color:var(--a)" id="su-kwh">—</span>
+          <div style="flex:1;min-width:130px;">
+            <div style="font-family:'Space Mono',monospace;font-size:.56rem;color:var(--tm);margin-bottom:.7rem">充電類型分析</div>
+            <div style="margin-bottom:.6rem;">
+              <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
+                <span style="display:flex;align-items:center;gap:5px;font-size:.67rem;color:var(--tx)"><span style="width:8px;height:8px;border-radius:2px;background:var(--a);display:inline-block"></span>超充</span>
+                <span style="font-family:'Orbitron',monospace;font-size:.78rem;font-weight:700;color:var(--a)" id="suKwh">—</span>
               </div>
-              <div style="height:3px;background:rgba(56,189,248,.09);border-radius:2px;overflow:hidden"><div id="bar-s" style="height:100%;background:var(--a);border-radius:2px;width:0;transition:width 1.5s cubic-bezier(.4,0,.2,1)"></div></div>
+              <div style="height:3px;background:rgba(56,189,248,.1);border-radius:2px;overflow:hidden"><div id="bsuper" style="height:100%;background:var(--a);border-radius:2px;width:0;transition:width 1.5s cubic-bezier(.4,0,.2,1)"></div></div>
             </div>
             <div>
-              <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px">
-                <span style="display:flex;align-items:center;gap:5px;font-size:.64rem;color:var(--tx)"><span style="width:7px;height:7px;border-radius:2px;background:#34D399;display:inline-block"></span>慢充</span>
-                <span style="font-family:'Orbitron',monospace;font-size:.75rem;font-weight:700;color:#34D399" id="sl-kwh">—</span>
+              <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
+                <span style="display:flex;align-items:center;gap:5px;font-size:.67rem;color:var(--tx)"><span style="width:8px;height:8px;border-radius:2px;background:#34D399;display:inline-block"></span>慢充</span>
+                <span style="font-family:'Orbitron',monospace;font-size:.78rem;font-weight:700;color:#34D399" id="slKwh">—</span>
               </div>
-              <div style="height:3px;background:rgba(52,211,153,.09);border-radius:2px;overflow:hidden"><div id="bar-l" style="height:100%;background:#34D399;border-radius:2px;width:0;transition:width 1.5s .15s cubic-bezier(.4,0,.2,1)"></div></div>
+              <div style="height:3px;background:rgba(52,211,153,.1);border-radius:2px;overflow:hidden"><div id="bslow" style="height:100%;background:#34D399;border-radius:2px;width:0;transition:width 1.5s .15s cubic-bezier(.4,0,.2,1)"></div></div>
             </div>
-            <div style="margin-top:.75rem;padding-top:.65rem;border-top:1px solid rgba(56,189,248,.07);font-size:.54rem;color:var(--td);font-family:'Space Mono',monospace">＊付費度數含熱損耗與線損</div>
+            <div style="margin-top:.8rem;padding-top:.7rem;border-top:1px solid rgba(56,189,248,.07);font-size:.56rem;color:var(--td);font-family:'Space Mono',monospace">付費度數含熱損耗與線損</div>
           </div>
         </div>
       </div>
     </div>
     <div class="sb">
       <div class="sl">月度分析</div>
-      <div class="cc" style="margin-bottom:.65rem">
-        <div class="ct">每月充電度數 vs 花費</div>
-        <div class="leg" id="mleg"></div>
-        <div style="position:relative;height:255px"><canvas id="cM" aria-label="月度圖"></canvas></div>
-      </div>
+      <div class="cc" style="margin-bottom:.7rem;"><div class="ct">每月充電度數 vs 花費</div><div class="legend" id="mleg"></div><div style="position:relative;height:260px"><canvas id="cM">月度圖</canvas></div></div>
       <div class="cg2">
-        <div class="cc"><div class="ct">能耗趨勢（km/kWh）</div><div style="position:relative;height:195px"><canvas id="cE" aria-label="能耗趨勢"></canvas></div></div>
-        <div class="cc"><div class="ct">充電站廠牌分布</div><div id="bwrap" style="position:relative;height:195px"><canvas id="cB" aria-label="廠牌分布"></canvas></div></div>
+        <div class="cc"><div class="ct">能耗趨勢（km/kWh）</div><div style="position:relative;height:200px"><canvas id="cE">能耗趨勢</canvas></div></div>
+        <div class="cc"><div class="ct">充電站廠牌分布</div><div id="bwrap" style="position:relative;height:200px"><canvas id="cB">廠牌分布</canvas></div></div>
       </div>
     </div>
     <div class="sb">
       <div class="sl">月度充電明細</div>
-      <div class="tw">
-        <div class="th">充電記錄月度匯總</div>
-        <div class="sx"><table class="dt">
-          <thead><tr><th>月份</th><th>次數</th><th>行駛 km</th><th>充電 kWh</th><th>超充費 NT$</th><th>停車費 NT$</th><th>總花費 NT$</th><th>NT$/km</th><th>km/kWh</th></tr></thead>
-          <tbody id="tbody"></tbody>
-        </table></div>
-      </div>
+      <div class="tw"><div class="th">充電記錄月度匯總</div><div class="sx">
+        <table class="dt"><thead><tr><th>月份</th><th>次數</th><th>行駛 km</th><th>實際 kWh</th><th>超充費 NT$</th><th>停車費 NT$</th><th>總花費 NT$</th><th>NT$/km</th><th>km/kWh</th></tr></thead><tbody id="tbody"></tbody></table>
+      </div></div>
     </div>
-    <div class="sb">
-      <div class="sl">常用充電站排名</div>
-      <div class="sg" id="sgrid"></div>
-    </div>
+    <div class="sb"><div class="sl">常用充電站排名</div><div class="sg" id="sgrid"></div></div>
   </div>
 
   <!-- TAB: 每日里程 -->
-  <div class="tp" id="t-daily">
+  <div class="tab-panel" id="tab-daily">
     <div class="sb">
       <div class="sl">每日里程追蹤</div>
-      <div class="cc" style="margin-bottom:.65rem"><div class="ct">累積總里程趨勢</div><div style="position:relative;height:270px"><canvas id="cD1" aria-label="累積里程"></canvas></div></div>
+      <div class="cc" style="margin-bottom:.7rem;"><div class="ct">累積總里程趨勢（km）</div><div style="position:relative;height:280px"><canvas id="cDaily">每日里程</canvas></div></div>
       <div class="cg2">
-        <div class="cc"><div class="ct">每日行駛里程（km）</div><div style="position:relative;height:215px"><canvas id="cD2" aria-label="每日km"></canvas></div></div>
-        <div class="cc"><div class="ct">累積能耗趨勢（km/kWh）</div><div style="position:relative;height:215px"><canvas id="cD3" aria-label="每日能耗"></canvas></div></div>
+        <div class="cc"><div class="ct">每日行駛里程（km）</div><div style="position:relative;height:220px"><canvas id="cDailyKm">每日km</canvas></div></div>
+        <div class="cc"><div class="ct">累積電耗（km/kWh）</div><div style="position:relative;height:220px"><canvas id="cDailyEff">每日能耗</canvas></div></div>
       </div>
     </div>
-    <div class="sb">
-      <div class="sl">每日明細（最新 60 筆）</div>
-      <div class="tw"><div class="sx"><table class="dt">
-        <thead><tr><th>日期</th><th>周</th><th>累積里程</th><th>累積用電 kWh</th><th>Wh/km</th><th>km/kWh</th><th>今日 km</th><th>今日度數</th><th>備註</th></tr></thead>
-        <tbody id="tbody-d"></tbody>
-      </table></div></div>
+    <div class="sb"><div class="sl">每日明細（最新 60 筆）</div>
+      <div class="tw"><div class="sx">
+        <table class="dt"><thead><tr><th>日期</th><th>週</th><th>累積里程</th><th>累積用電 kWh</th><th>Wh/km</th><th>km/kWh</th><th>今日 km</th><th>今日度數</th><th>備註</th></tr></thead><tbody id="tbody-daily"></tbody></table>
+      </div></div>
     </div>
   </div>
 
   <!-- TAB: 月度摘要 -->
-  <div class="tp" id="t-monthly">
+  <div class="tab-panel" id="tab-monthly">
     <div class="sb">
       <div class="sl">月度統計摘要</div>
       <div class="cg2">
-        <div class="cc"><div class="ct">各月行駛里程 km</div><div style="position:relative;height:215px"><canvas id="cM1" aria-label="月里程"></canvas></div></div>
-        <div class="cc"><div class="ct">各月平均電耗 km/kWh</div><div style="position:relative;height:215px"><canvas id="cM2" aria-label="月能耗"></canvas></div></div>
+        <div class="cc"><div class="ct">各月行駛里程 km</div><div style="position:relative;height:220px"><canvas id="cMoKm">月里程</canvas></div></div>
+        <div class="cc"><div class="ct">各月平均電耗 km/kWh</div><div style="position:relative;height:220px"><canvas id="cMoEff">月能耗</canvas></div></div>
       </div>
     </div>
-    <div class="sb">
-      <div class="sl">月度完整數據</div>
-      <div class="tw"><div class="sx"><table class="dt">
-        <thead><tr><th>月份</th><th>里程 km</th><th>用電 kWh</th><th>Wh/km</th><th>km/kWh</th><th>充電 kWh</th><th>總花費 NT$</th><th>NT$/km</th><th>超充 kWh</th><th>慢充 kWh</th></tr></thead>
-        <tbody id="tbody-m"></tbody>
-      </table></div></div>
+    <div class="sb"><div class="sl">月度完整數據</div>
+      <div class="tw"><div class="sx">
+        <table class="dt"><thead><tr><th>月份</th><th>里程 km</th><th>用電 kWh</th><th>Wh/km</th><th>km/kWh</th><th>充電 kWh</th><th>總花費 NT$</th><th>NT$/km</th><th>超充 kWh</th><th>慢充 kWh</th></tr></thead><tbody id="tbody-monthly"></tbody></table>
+      </div></div>
     </div>
   </div>
+</div><!-- /#app -->
 
-</div>
-<footer>Tesla Model Y RWD · EBC-0289 · 2024/08 起算 · <span id="fcnt">—</span> 筆充電記錄 · <span id="lupd">—</span></footer>
+<footer>Tesla Model Y RWD · EBC-0289 · 2024/08 起算 · <span id="fcnt">—</span> 筆充電記錄 · <span id="lupdate">—</span></footer>
 
 <script>
 // ═══════════════════════════════════════════════════════════════
-// 資料讀取：Google Visualization API (gviz/tq)
-// 試算表必須設定「知道連結的人可以檢視」
-// 完全不需要 GAS 或任何 API Key
+// ★ 設定區 — 只有這裡需要確認
 // ═══════════════════════════════════════════════════════════════
-const SID = '1mR1-8reYqKFcKdVmdeX_fd9_VJNYMyyjzq15_YdL6LM';
 
-// 工作表名稱（對應你的 Google Sheets Tab 名稱）
-const SHEET_C = 'EBC-0289';        // 充電記錄
-const SHEET_D = '每日里程數據追蹤'; // 每日里程
-const SHEET_M = '月度摘要';         // 月度摘要
+const SHEET_ID = '1mR1-8reYqKFcKdVmdeX_fd9_VJNYMyyjzq15_YdL6LM';
 
-// 充電記錄標題列在第幾列（0-indexed）
-// 你的工作表標題在第 5 列（index 4）
-const HEADER_ROW_C = 4;
-const HEADER_ROW_D = 0;
-const HEADER_ROW_M = 0;
+// ★★★ 前提：Google Sheets 必須設為「知道連結的人可以檢視」★★★
+// 設定路徑：Google Sheets → 右上角「共用」→ 一般存取 → 知道連結的人 → 檢視者
 
-// ── gviz 抓取核心函數 ──────────────────────────────────────
-async function gvizFetch(sheet, headerRow = 0) {
-  const url = `https://docs.google.com/spreadsheets/d/${SID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheet)}&headers=${headerRow + 1}`;
-  const res = await fetch(url, { mode: 'cors' });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const txt = await res.text();
-  // gviz 回傳格式: google.visualization.Query.setResponse({...})
-  const m = txt.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\)/);
-  if (!m) throw new Error('gviz 格式不符，請確認試算表為「知道連結者可檢視」');
-  const json = JSON.parse(m[1]);
-  if (json.status === 'error') throw new Error(json.errors?.[0]?.message || 'Sheets 回傳錯誤');
-  const { cols, rows } = json.table;
-  // 回傳: [{欄位名:值, ...}, ...]
-  return (rows || []).map(r =>
-    Object.fromEntries((r.c || []).map((c, i) => [
-      (cols[i]?.label || cols[i]?.id || `col${i}`).trim(),
-      c ? c.v : null
-    ]))
-  );
-}
+// gviz API 網址（中文工作表名已 URL encode）
+// headers=5 → 充電記錄的欄位名稱在第 5 列（Sheets 第5行），資料從第6行開始
+// headers=1 → 每日里程、月度摘要的欄位名稱在第 1 列
+const GID_C = encodeURIComponent('充電記錄');  // 充電記錄
+const GID_D = encodeURIComponent('每日里程');  // 每日里程
+const GID_M = encodeURIComponent('月度摘要');  // 月度摘要
 
-// ── 數值安全工具 ──────────────────────────────────────────────
-const n  = v => { const p = parseFloat(String(v ?? '').replace(/[^0-9.\-]/g, '')); return isFinite(p) ? p : 0; };
-const sdv = (a, b, fb = 0) => (!b || !isFinite(b)) ? fb : (v => isFinite(v) ? v : fb)(a / b);
+const BASE = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json`;
+const URL_C = `${BASE}&sheet=${GID_C}&headers=5`;
+const URL_D = `${BASE}&sheet=${GID_D}&headers=1`;
+const URL_M = `${BASE}&sheet=${GID_M}&headers=1`;
 
-// ── 日期格式化（gviz 回傳 Date(y,m,d) 字串）──────────────────
-function fdate(v) {
-  if (!v) return '—';
-  if (typeof v === 'string' && v.startsWith('Date(')) {
-    const p = v.replace('Date(','').replace(')','').split(',').map(Number);
-    return `${p[0]}/${String(p[1]+1).padStart(2,'0')}/${String(p[2]).padStart(2,'0')}`;
-  }
-  return String(v).substring(0, 10);
-}
+// ★ 充電記錄欄位 index（對應 Sheets 第5列標題行）
+// col 0:開始時間  col 2:年  col 3:月  col 4:廠牌  col 5:超/慢充  col 7:站名
+// col 11:表顯kWh  col 12:實際kWh  col 13:費率  col 15:當下里程
+// col 17:充電費   col 19:停車費   col 20:充停總和
+// col 22:上次里程 col 23:上次度數 col 24:Wh/KM  col 25:KM/KWh
+const CI = {
+  dt:0, yr:2, mo:3, brand:4, type:5, station:7,
+  teslaKwh:11, actualKwh:12, rate:13, odo:15,
+  chargeFee:17, parkFee:19, total:20,
+  kmSince:22, kwhSince:23, whPkm:24, effKm:25
+};
 
-// ── STATE ─────────────────────────────────────────────────────
 const PURCHASE_KM = 50;
-let DATA_C = [], DATA_D = [], DATA_M = [];
-let period = 'all', dark = true, CH = {};
 
-// ── 取消/建立圖表 ─────────────────────────────────────────────
-function dc(id) { if (CH[id]) { CH[id].destroy(); delete CH[id]; } }
-function tclr() {
-  return {
-    grid: dark ? 'rgba(56,189,248,.055)' : 'rgba(56,189,248,.09)',
-    tick: dark ? '#334155' : '#94A3B8',
-    a: '#38BDF8', aA: 'rgba(56,189,248,.7)',
-    b: '#818CF8', bA: 'rgba(129,140,248,.42)',
-    g: '#34D399', gA: 'rgba(52,211,153,.6)',
-  };
+// ═══════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════
+let DC = [], DD = [], DM = [];
+let period = 'all', dark = true, CH = {};
+let lastErr = '';
+
+// ═══════════════════════════════════════════════════════════════
+// UI HELPERS
+// ═══════════════════════════════════════════════════════════════
+function sp(pct, msg) {
+  document.getElementById('sp-bar').style.cssText =
+    `height:100%;width:${pct}%;background:linear-gradient(90deg,#38BDF8,#7DD3FC);border-radius:1px;transition:width .4s ease`;
+  document.getElementById('spst').textContent = msg;
 }
 
-// ═══════════════════════════════════════════════════════════════
-// 主資料載入
-// ═══════════════════════════════════════════════════════════════
-async function loadData() {
-  // 重設狀態
-  document.getElementById('ls').classList.remove('hide');
-  document.getElementById('app').classList.remove('v');
-  document.getElementById('es').classList.remove('show');
-  setSS('spin', '讀取中...');
-
-  const msgs = ['讀取充電記錄...','讀取每日里程...','讀取月度摘要...','計算指標...','渲染完成 ✓'];
-  let mi = 0;
-  const mt = setInterval(() => {
-    mi = Math.min(mi + 1, msgs.length - 1);
-    document.getElementById('spst').textContent = msgs[mi];
-    if (mi === msgs.length - 1) clearInterval(mt);
-  }, 500);
-
-  try {
-    // 並行抓取三個工作表
-    const [rawC, rawD, rawM] = await Promise.all([
-      gvizFetch(SHEET_C, HEADER_ROW_C),
-      gvizFetch(SHEET_D, HEADER_ROW_D),
-      gvizFetch(SHEET_M, HEADER_ROW_M),
-    ]);
-
-    // 充電記錄：過濾有效行（有年份、有充電度數）
-    DATA_C = rawC.filter(r => {
-      const yr = n(r['年\n份'] || r['年份'] || r['年 份']);
-      const kw = n(r['實際\n充電\n度數'] || r['實際充電度數'] || r['實際 充電 度數']);
-      return yr > 2000 && kw > 0;
-    });
-
-    // 每日里程：過濾有效行（有日期、有里程）
-    DATA_D = rawD.filter(r => {
-      const odo = n(r['總里程\n(Km)'] || r['總里程(Km)'] || r['odo']);
-      return odo > 0;
-    });
-
-    // 月度摘要：過濾有效月份行（格式 YYYYMM）
-    DATA_M = rawM.filter(r => {
-      const p = String(r['Tesla MY RWD\n2024/8/20\n起始里程50'] || r['月份'] || r[Object.keys(r)[0]] || '').trim();
-      return /^\d{6}$/.test(p);
-    });
-
-    clearInterval(mt);
-    document.getElementById('spst').textContent = '系統就緒 ✓';
-    setSS('ok', `已同步 ${DATA_C.length} 筆`);
-    document.getElementById('lupd').textContent = `更新 ${new Date().toLocaleString('zh-TW')}`;
-    document.getElementById('fcnt').textContent = DATA_C.length;
-
-    render();
-    document.getElementById('app').classList.add('v');
-    setTimeout(() => {
-      document.getElementById('ls').classList.add('hide');
-    }, 300);
-
-  } catch(e) {
-    clearInterval(mt);
-    setSS('fail', '讀取失敗');
-    document.getElementById('ls').classList.add('hide');
-    document.getElementById('emsg').innerHTML =
-      `錯誤：${e.message}<br><br>` +
-      `請確認：<br>` +
-      `① Google Sheets 已設為「知道連結者可檢視」<br>` +
-      `② 工作表名稱正確（充電記錄: "${SHEET_C}"、每日里程: "${SHEET_D}"、月度摘要: "${SHEET_M}"）<br>` +
-      `③ 試試重新整理`;
-    document.getElementById('es').classList.add('show');
-    console.error('[Dashboard]', e);
-  }
+let tt;
+function toast(msg, type = 'info') {
+  const el = document.getElementById('toast');
+  const icons = { info: 'ℹ️', ok: '✅', err: '⚠️' };
+  document.getElementById('ti').textContent = icons[type] || 'ℹ️';
+  document.getElementById('tm2').textContent = msg;
+  el.className = 'show' + (type === 'err' ? ' err' : type === 'ok' ? ' ok' : '');
+  clearTimeout(tt); tt = setTimeout(() => { el.className = ''; }, 6000);
 }
 
 function setSS(s, l) {
-  document.getElementById('sd').className = 'sd ' + s;
-  document.getElementById('sl2').textContent = l;
+  document.getElementById('sdot').className = 'sdot ' + s;
+  document.getElementById('slbl').textContent = l;
+}
+
+function showError(msg) {
+  document.getElementById('error-panel').style.display = 'block';
+  document.getElementById('app').style.opacity = '.3';
+  document.getElementById('err-detail-box').style.display = 'block';
+  document.getElementById('err-detail-txt').textContent = msg;
+}
+
+function hideError() {
+  document.getElementById('error-panel').style.display = 'none';
+  document.getElementById('app').style.opacity = '';
 }
 
 // ═══════════════════════════════════════════════════════════════
-// 欄位名稱取得輔助（支援換行符的欄位名稱）
+// ★ GVIZ FETCH — 核心讀取函數
+// gviz 回傳格式：google.visualization.Query.setResponse({status:'ok', table:{...}})
 // ═══════════════════════════════════════════════════════════════
-function gf(row, ...keys) {
-  for (const k of keys) {
-    // 完全匹配
-    if (row[k] !== undefined && row[k] !== null && row[k] !== '') return row[k];
-    // 忽略換行符匹配
-    const norm = k.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
-    for (const rk of Object.keys(row)) {
-      const rnorm = rk.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
-      if (rnorm === norm && row[rk] !== null && row[rk] !== '') return row[rk];
-    }
+async function fetchGviz(url, label) {
+  let text;
+  try {
+    const res = await fetch(url, { cache: 'no-cache' });
+    if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+    text = await res.text();
+  } catch (e) {
+    throw new Error(`${label} 網路錯誤：${e.message}`);
   }
-  return null;
-}
 
-// 充電記錄欄位快捷
-function cc_field(r) {
-  return {
-    date:       fdate(gf(r, '充電開始\n時間','充電開始 時間','充電開始時間')),
-    year:       n(gf(r, '年\n份','年份','年 份')),
-    month:      n(gf(r, '月\n份','月份','月 份')),
-    brand:      String(gf(r, '充電站\n廠牌','充電站廠牌','充電站 廠牌') || '').trim(),
-    type:       String(gf(r, '超/慢\n充','超慢充','超/慢 充') || '超充').trim(),
-    station:    String(gf(r, '站點\n名稱','站點名稱','站點 名稱') || '').trim(),
-    teslaKwh:   n(gf(r, '表顯\n充電\n度數','表顯充電度數','表顯 充電 度數')),
-    actualKwh:  n(gf(r, '實際\n充電\n度數','實際充電度數','實際 充電 度數')),
-    rate:       n(gf(r, '充電\n費率\n(元/度)','充電費率(元/度)','充電 費率 (元/度)')),
-    odo:        n(gf(r, '充電\n當下\n里程','充電當下里程','充電 當下 里程')),
-    chargeFee:  n(gf(r, '充電\n費用','充電費用')),
-    parkFee:    n(gf(r, '停車\n費用','停車費用')),
-    totalCost:  n(gf(r, '充停\n費用\n總和','充停費用總和')),
-    kmSince:    n(gf(r, '自上次充\n電後里程','自上次充電後里程')),
-    kmPerKwh:   n(gf(r, 'KM/KWh','km/kWh','KM/KWh')),
-  };
+  // 剝除外層 JS wrapper
+  const m = text.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\)\s*;?\s*$/);
+  if (!m) {
+    // 嘗試偵測是否為 HTML 錯誤頁（登入牆）
+    if (text.includes('<html') || text.includes('<!DOCTYPE')) {
+      throw new Error(`${label}：Google 回傳 HTML 頁面，試算表尚未設為「知道連結的人可以檢視」`);
+    }
+    throw new Error(`${label}：回應格式不符（${text.slice(0, 80)}...）`);
+  }
+
+  let j;
+  try { j = JSON.parse(m[1]); }
+  catch (e) { throw new Error(`${label}：JSON 解析失敗 — ${e.message}`); }
+
+  if (j.status === 'error') {
+    const errs = (j.errors || []).map(e => e.detailed_message || e.message).join('; ');
+    throw new Error(`${label} API 錯誤：${errs}`);
+  }
+
+  const cols = (j.table.cols || []).map(c => (c.label || c.id || '').trim());
+  const rows = (j.table.rows || []).map(r =>
+    (r.c || []).map(c => (c && c.v !== undefined) ? c.v : null)
+  );
+
+  console.log(`[${label}] cols:`, cols.slice(0, 8), '... rows:', rows.length);
+  return { cols, rows };
 }
 
 // ═══════════════════════════════════════════════════════════════
-// 資料計算
+// PARSE — 充電記錄
 // ═══════════════════════════════════════════════════════════════
-function getFiltered() {
-  const rows = DATA_C.map(cc_field);
-  if (period === 'all') return rows;
-  return rows.filter(r => r.year === parseInt(period));
+function parseCharging({ rows }) {
+  const result = rows
+    .filter(r => {
+      const kwh = parseFloat(r[CI.actualKwh]);
+      const yr  = parseFloat(r[CI.yr]);
+      return isFinite(kwh) && kwh > 0 && isFinite(yr) && yr > 0;
+    })
+    .map(r => ({
+      date:      String(r[CI.dt] || '').split('T')[0].split(' ')[0],
+      year:      +r[CI.yr],
+      month:     +r[CI.mo],
+      brand:     String(r[CI.brand]  || '').trim().replace(/\s+/g, ''),
+      type:      String(r[CI.type]   || '').trim(),
+      station:   String(r[CI.station]|| '').trim(),
+      teslaKwh:  +(r[CI.teslaKwh]   || 0),
+      actualKwh: +(r[CI.actualKwh]  || 0),
+      rate:      +(r[CI.rate]       || 0),
+      odoNow:    r[CI.odo]     != null && r[CI.odo]     !== '' ? +r[CI.odo]     : null,
+      chargeFee: +(r[CI.chargeFee]  || 0),
+      parkFee:   +(r[CI.parkFee]    || 0),
+      totalCost: +(r[CI.total]      || 0),
+      kmSince:   r[CI.kmSince] != null ? +r[CI.kmSince] : 0,
+      kwhSince:  r[CI.kwhSince]!= null ? +r[CI.kwhSince]: 0,
+      whPerKm:   r[CI.whPkm]  != null ? +r[CI.whPkm]  : null,
+      kmPerKwh:  r[CI.effKm]  != null ? +r[CI.effKm]  : null,
+    }));
+  console.log(`[充電記錄] 解析 ${result.length} 筆，首筆:`, result[0]);
+  return result;
 }
 
-function computeKPIs(data) {
-  if (!data.length) return { empty:true, totalSessions:0, totalKwh:0, totalCost:0, totalChargeFee:0, totalParkFee:0, superKwh:0, slowKwh:0, purchasedKm:0, avgKmPerKwh:0, avgRatePerKm:0, latestOdo:PURCHASE_KM };
-  const tKwh  = data.reduce((s,r) => s + r.actualKwh, 0);
-  const tCost = data.reduce((s,r) => s + r.totalCost, 0);
-  const tChg  = data.reduce((s,r) => s + r.chargeFee, 0);
-  const tPk   = data.reduce((s,r) => s + r.parkFee, 0);
-  const sKwh  = data.filter(r => r.type === '超充').reduce((s,r) => s + r.actualKwh, 0);
-  const lKwh  = data.filter(r => r.type === '慢充').reduce((s,r) => s + r.actualKwh, 0);
-  const odos  = data.filter(r => r.odo > 0).map(r => r.odo);
+// ═══════════════════════════════════════════════════════════════
+// PARSE — 每日里程
+// 欄位：日期[0] 年[1] 月[2] 周[3] 總里程(Km)[4] 總用電(kWh)[5] 能耗(Wh/Km)[6] (Km/kWh)[7] 用電間隔[8] 里程間隔[9] 備註[10]
+// ═══════════════════════════════════════════════════════════════
+function parseDaily({ rows }) {
+  return rows
+    .filter(r => r[4] != null && +r[4] > 0)
+    .map(r => ({
+      date:       String(r[0] || '').split('T')[0].split(' ')[0],
+      year:       +r[1], month: +r[2], week: +r[3] || 0,
+      odoKm:      +(r[4] || 0),
+      totalKwh:   +(r[5] || 0),
+      whPerKm:    r[6] != null ? +r[6] : null,
+      kmPerKwh:   r[7] != null ? +r[7] : null,
+      intervalKwh:+(r[8] || 0),
+      intervalKm: +(r[9] || 0),
+      note:        String(r[10] || ''),
+    }));
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PARSE — 月度摘要
+// 欄位：月份代碼[0] 里程[1] 實際用電[2] Wh/km[3] km/kWh[4]
+//        實際充電[5] 花費[6] NT/km[7] ...[8] 超充[9] 慢充[10]
+// 只取 6 位數字的行（202408, 202501...）
+// ═══════════════════════════════════════════════════════════════
+function parseMonthly({ rows }) {
+  return rows
+    .filter(r => r[0] && /^\d{6}$/.test(String(r[0]).trim()))
+    .map(r => ({
+      period:    String(r[0]).trim(),
+      km:        +(r[1] || 0),
+      actualKwh: +(r[2] || 0),
+      whPerKm:   +(r[3] || 0),
+      kmPerKwh:  +(r[4] || 0),
+      chargedKwh:+(r[5] || 0),
+      totalCost: +(String(r[6] || '0').replace(/,/g, '')),
+      costPerKm: +(r[7] || 0),
+      superKwh:  +(r[9] || 0),
+      slowKwh:   +(r[10]|| 0),
+    }));
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ★ SYNC ALL THREE SHEETS
+// ═══════════════════════════════════════════════════════════════
+async function syncAll() {
+  setSS('spin', '讀取中...');
+  sp(5, '連線 Google Sheets...');
+  hideError();
+
+  const errors = [];
+
+  try {
+    sp(20, '讀取充電記錄...');
+    const gC = await fetchGviz(URL_C, '充電記錄');
+    DC = parseCharging(gC);
+    sp(40, `充電記錄 ${DC.length} 筆 ✓`);
+  } catch (e) {
+    errors.push(`充電記錄：${e.message}`);
+    console.error('[充電記錄]', e);
+  }
+
+  try {
+    sp(55, '讀取每日里程...');
+    const gD = await fetchGviz(URL_D, '每日里程');
+    DD = parseDaily(gD);
+    sp(70, `每日里程 ${DD.length} 筆 ✓`);
+  } catch (e) {
+    errors.push(`每日里程：${e.message}`);
+    console.error('[每日里程]', e);
+  }
+
+  try {
+    sp(82, '讀取月度摘要...');
+    const gM = await fetchGviz(URL_M, '月度摘要');
+    DM = parseMonthly(gM);
+    sp(95, `月度摘要 ${DM.length} 筆 ✓`);
+  } catch (e) {
+    errors.push(`月度摘要：${e.message}`);
+    console.error('[月度摘要]', e);
+  }
+
+  sp(100, DC.length > 0 ? '載入完成 ✓' : '載入失敗 ⚠️');
+
+  const now = new Date().toLocaleString('zh-TW');
+  document.getElementById('lupdate').textContent = `更新 ${now}`;
+
+  if (DC.length > 0) {
+    // 成功
+    setSS('ok', `已同步 ${DC.length} 筆`);
+    document.getElementById('sb-text').textContent =
+      `✅ 充電 ${DC.length} 筆 · 每日里程 ${DD.length} 筆 · 月度摘要 ${DM.length} 筆 · ${now}`;
+    toast(`成功同步三個工作表 (${DC.length}筆)`, 'ok');
+  } else {
+    // 失敗
+    setSS('fail', '同步失敗');
+    const errMsg = errors.join('\n\n');
+    lastErr = errMsg;
+    document.getElementById('sb-text').textContent = `⚠️ 無法讀取資料 — 請查看下方說明`;
+    showError(errMsg);
+    toast('讀取失敗，請查看頁面說明', 'err');
+  }
+
+  if (errors.length > 0 && DC.length > 0) {
+    // 部分成功
+    toast(`部分工作表讀取失敗：${errors.join('; ')}`, 'err');
+  }
+}
+
+function manualSync() { syncAll().then(() => render()); }
+
+// ═══════════════════════════════════════════════════════════════
+// THEME
+// ═══════════════════════════════════════════════════════════════
+function toggleTheme() {
+  dark = !dark;
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+  document.getElementById('theme-btn').textContent = dark ? '🌙' : '☀️';
+  render();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TABS
+// ═══════════════════════════════════════════════════════════════
+function switchTab(name, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+  render();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MATH
+// ═══════════════════════════════════════════════════════════════
+const sn  = (v, fb=0) => { const n=parseFloat(String(v||'').replace(/,/g,'')); return isFinite(n)?n:fb; };
+const sdv = (n, d, fb=0) => (!isFinite(d)||d===0)?fb:(v=>isFinite(v)?v:fb)(n/d);
+
+// ═══════════════════════════════════════════════════════════════
+// DATA COMPUTATIONS
+// ═══════════════════════════════════════════════════════════════
+function filt() {
+  return period === 'all' ? DC : DC.filter(r => r.year === parseInt(period));
+}
+
+function computeKPIs(d) {
+  if (!d.length) return { totalSessions:0, totalKwh:0, totalCost:0, totalChargeFee:0, totalParkFee:0, superKwh:0, slowKwh:0, purchasedKm:0, avgKmPerKwh:0, avgRatePerKm:0, latestOdo:PURCHASE_KM };
+  const tKwh = d.reduce((s,r)=>s+r.actualKwh, 0);
+  const tCost= d.reduce((s,r)=>s+r.totalCost, 0);
+  const tChg = d.reduce((s,r)=>s+r.chargeFee, 0);
+  const tPk  = d.reduce((s,r)=>s+r.parkFee,   0);
+  const sKwh = d.filter(r=>r.type==='超充').reduce((s,r)=>s+r.actualKwh, 0);
+  const lKwh = d.filter(r=>r.type==='慢充').reduce((s,r)=>s+r.actualKwh, 0);
+  const odos  = d.filter(r=>r.odoNow!=null&&isFinite(r.odoNow)).map(r=>r.odoNow);
   const latestOdo = odos.length ? Math.max(...odos) : PURCHASE_KM;
-  const pk    = latestOdo - PURCHASE_KM;
-  const km = odos.length >= 2 ? Math.max(...odos) - Math.min(...odos)
-    : data.filter(r => r.kmSince > 0).reduce((s,r) => s + r.kmSince, 0);
-  return {
-    totalSessions: data.length, totalKwh: tKwh, totalCost: tCost,
-    totalChargeFee: tChg, totalParkFee: tPk, superKwh: sKwh, slowKwh: lKwh,
-    purchasedKm: pk, latestOdo,
-    avgKmPerKwh: sdv(pk, tKwh),
-    avgRatePerKm: sdv(tCost, km > 0 ? km : pk),
-  };
+  const pk = latestOdo - PURCHASE_KM;
+  const km = odos.length>=2 ? Math.max(...odos)-Math.min(...odos)
+    : d.filter(r=>r.kmSince>0).reduce((s,r)=>s+r.kmSince, 0);
+  return { totalSessions:d.length, totalKwh:tKwh, totalCost:tCost, totalChargeFee:tChg, totalParkFee:tPk,
+    superKwh:sKwh, slowKwh:lKwh, purchasedKm:pk, latestOdo,
+    avgKmPerKwh:sdv(pk,tKwh), avgRatePerKm:sdv(tCost,km>0?km:pk) };
 }
 
-function computeMonthlyFromC(data) {
+function computeMonthly(d) {
   const m = {};
-  data.forEach(r => {
+  d.forEach(r => {
     const k = `${r.year}/${String(r.month).padStart(2,'0')}`;
     if (!m[k]) m[k] = { key:k, sessions:0, kwh:0, cost:0, chargeFee:0, parkFee:0, km:0 };
     const e = m[k];
-    e.sessions++; e.kwh += r.actualKwh; e.cost += r.totalCost;
-    e.chargeFee += r.chargeFee; e.parkFee += r.parkFee;
+    e.sessions++; e.kwh+=r.actualKwh; e.cost+=r.totalCost;
+    e.chargeFee+=r.chargeFee; e.parkFee+=r.parkFee;
     if (r.kmSince > 0) e.km += r.kmSince;
   });
   return Object.values(m).sort((a,b) => a.key.localeCompare(b.key));
 }
 
+function tc() {
+  return {
+    grid: dark ? 'rgba(56,189,248,.06)' : 'rgba(56,189,248,.10)',
+    tick: dark ? '#334155' : '#94A3B8',
+    a:'#38BDF8', aA:'rgba(56,189,248,.72)', b:'#818CF8', bA:'rgba(129,140,248,.45)',
+    g:'#34D399', gA:'rgba(52,211,153,.65)',
+  };
+}
+
 // ═══════════════════════════════════════════════════════════════
-// RENDER: 充電記錄 TAB
+// RENDER
 // ═══════════════════════════════════════════════════════════════
 function renderKPIs(k) {
   const cs = [
-    {l:'總充電次數',   v:k.totalSessions,                               u:'次',    c:'#38BDF8', i:'⚡'},
-    {l:'總充電度數',   v:k.totalKwh.toFixed(1),                         u:'kWh',   c:'#7DD3FC', i:'🔋'},
-    {l:'超充費用',     v:'NT$'+Math.round(k.totalChargeFee).toLocaleString(), u:'元', c:'#FB923C', i:'🔌'},
-    {l:'停車費用',     v:'NT$'+Math.round(k.totalParkFee).toLocaleString(),   u:'元', c:'#818CF8', i:'🅿'},
-    {l:'總花費',       v:'NT$'+Math.round(k.totalCost).toLocaleString(),       u:'元', c:'#FACC15', i:'💳'},
-    {l:'超充度數',     v:k.superKwh.toFixed(1),                         u:'kWh',   c:'#FB923C', i:'⚡'},
-    {l:'慢充度數',     v:k.slowKwh.toFixed(1),                          u:'kWh',   c:'#34D399', i:'🔌'},
-    {l:'每km費率',     v:'NT$'+k.avgRatePerKm.toFixed(2),               u:'元/km', c:'#A78BFA', i:'📍'},
+    { l:'總充電次數', v:k.totalSessions,                                   u:'次',    c:'#38BDF8', i:'⚡' },
+    { l:'總充電度數', v:k.totalKwh.toFixed(1),                              u:'kWh',   c:'#7DD3FC', i:'🔋' },
+    { l:'超充費用',   v:'NT$'+Math.round(k.totalChargeFee).toLocaleString(), u:'元',    c:'#FB923C', i:'🔌' },
+    { l:'停車費用',   v:'NT$'+Math.round(k.totalParkFee).toLocaleString(),   u:'元',    c:'#818CF8', i:'🅿' },
+    { l:'總花費',     v:'NT$'+Math.round(k.totalCost).toLocaleString(),      u:'元',    c:'#FACC15', i:'💳' },
+    { l:'超充度數',   v:k.superKwh.toFixed(1),                              u:'kWh',   c:'#FB923C', i:'⚡' },
+    { l:'慢充度數',   v:k.slowKwh.toFixed(1),                               u:'kWh',   c:'#34D399', i:'🔌' },
+    { l:'每km費率',   v:'NT$'+k.avgRatePerKm.toFixed(2),                    u:'元/km', c:'#A78BFA', i:'📍' },
   ];
   document.getElementById('kgrid').innerHTML = cs.map(c =>
-    `<div class="kc" style="--kca:${c.c}"><div class="ki">${c.i}</div><div class="kl">${c.l}</div><div class="kv">${c.v}</div><div class="ku">${c.u}</div></div>`
+    `<div class="kc" style="--kca:${c.c}">
+      <div class="ki">${c.i}</div>
+      <div class="kl">${c.l}</div>
+      <div class="kv">${c.v}</div>
+      <div class="ku">${c.u}</div>
+    </div>`
   ).join('');
 }
 
 function renderHero(k) {
   document.getElementById('hkm').textContent   = k.purchasedKm.toLocaleString();
-  document.getElementById('hodo').textContent   = k.latestOdo.toLocaleString();
-  document.getElementById('heff').textContent   = k.avgKmPerKwh.toFixed(2);
-  document.getElementById('hrate').textContent  = k.avgRatePerKm.toFixed(2);
-  const sp = sdv(k.superKwh, k.totalKwh) * 100;
-  const sl = sdv(k.slowKwh, k.totalKwh) * 100;
-  document.getElementById('rpct').textContent   = sp.toFixed(0) + '%';
-  document.getElementById('su-kwh').textContent = k.superKwh.toFixed(0) + ' kWh';
-  document.getElementById('sl-kwh').textContent = k.slowKwh.toFixed(0) + ' kWh';
+  document.getElementById('hodo').textContent  = (k.latestOdo||0).toLocaleString();
+  document.getElementById('heff').textContent  = k.avgKmPerKwh.toFixed(2);
+  document.getElementById('hrate').textContent = k.avgRatePerKm.toFixed(2);
+  document.getElementById('fcnt').textContent  = DC.length;
+  const sp2 = sdv(k.superKwh, k.totalKwh)*100;
+  const sl  = sdv(k.slowKwh,  k.totalKwh)*100;
+  document.getElementById('rpct').textContent  = sp2.toFixed(0)+'%';
+  document.getElementById('suKwh').textContent = k.superKwh.toFixed(0)+' kWh';
+  document.getElementById('slKwh').textContent = k.slowKwh.toFixed(0)+' kWh';
   const C = 283;
   setTimeout(() => {
-    document.getElementById('ring-s').style.strokeDashoffset = C - (sp / 100) * C;
-    document.getElementById('ring-l').style.strokeDashoffset = C - (sl / 100) * C;
-    document.getElementById('bar-s').style.width = sp + '%';
-    document.getElementById('bar-l').style.width = sl + '%';
-  }, 280);
+    document.getElementById('rsuper').style.strokeDashoffset = C-(sp2/100)*C;
+    document.getElementById('rslow').style.strokeDashoffset  = C-(sl/100)*C;
+    document.getElementById('bsuper').style.width = sp2+'%';
+    document.getElementById('bslow').style.width  = sl+'%';
+  }, 300);
 }
 
-function renderCTable(mo) {
-  const mx = Math.max(...mo.map(m => m.km), 1);
+function renderTable(mo) {
+  const mx = Math.max(...mo.map(m=>m.km), 1);
   document.getElementById('tbody').innerHTML = mo.map(m => {
-    const bw = Math.round(m.km / mx * 48);
-    const ef = m.km > 0 && m.kwh > 0 ? m.km / m.kwh : 0;
-    const ec = ef >= 6 ? 'eg' : ef >= 5 ? 'em' : ef > 0 ? 'ep' : '';
-    const et = ef > 0 ? `<span class="eb ${ec}">${ef.toFixed(2)}</span>` : '—';
-    const pk = m.km > 0 && m.cost > 0 ? (m.cost / m.km).toFixed(2) : '—';
-    return `<tr><td>${m.key}</td><td>${m.sessions}</td>
+    const bw = Math.round(m.km/mx*50);
+    const ef = m.km>0&&m.kwh>0 ? m.km/m.kwh : 0;
+    const ec = ef>=6?'eg':ef>=5?'em':ef>0?'ep':'';
+    const et = ef>0 ? `<span class="eb ${ec}">${ef.toFixed(2)}</span>` : '—';
+    const pk = m.km>0&&m.cost>0 ? (m.cost/m.km).toFixed(2) : '—';
+    return `<tr>
+      <td>${m.key}</td><td>${m.sessions}</td>
       <td><span class="ib" style="width:${bw}px"></span>${m.km.toLocaleString()}</td>
       <td>${m.kwh.toFixed(1)}</td>
       <td>NT$${Math.round(m.chargeFee).toLocaleString()}</td>
       <td>NT$${Math.round(m.parkFee).toLocaleString()}</td>
       <td>NT$${Math.round(m.cost).toLocaleString()}</td>
-      <td>${pk !== '—' ? 'NT$' + pk : '—'}</td>
-      <td>${et}</td></tr>`;
+      <td>${pk!=='—'?'NT$'+pk:'—'}</td>
+      <td>${et}</td>
+    </tr>`;
   }).join('');
 }
 
-function renderStations(data) {
+function renderStations(d) {
   const sm = {};
-  data.forEach(r => {
+  d.forEach(r => {
     if (!r.station) return;
     if (!sm[r.station]) sm[r.station] = { n:0, kwh:0, cost:0 };
-    sm[r.station].n++; sm[r.station].kwh += r.actualKwh; sm[r.station].cost += r.chargeFee;
+    sm[r.station].n++;
+    sm[r.station].kwh  += r.actualKwh;
+    sm[r.station].cost += r.chargeFee;
   });
-  const s = Object.entries(sm).sort((a,b) => b[1].n - a[1].n).slice(0, 8);
+  const s = Object.entries(sm).sort((a,b)=>b[1].n-a[1].n).slice(0, 8);
   const pl = ['#38BDF8','#7DD3FC','#818CF8','#34D399','#FB923C','#FACC15','#F472B6','#A78BFA'];
-  document.getElementById('sgrid').innerHTML = s.map(([nm, v], i) =>
+  document.getElementById('sgrid').innerHTML = s.map(([n,v],i) =>
     `<div class="scard" style="border-top:2px solid ${pl[i%pl.length]}">
-      <div class="srk">#${i+1}</div><div class="snm">${nm}</div>
-      <div class="scn">${v.n}<span style="font-size:.6rem;font-weight:400;color:var(--tm)"> 次</span></div>
+      <div class="srk">#${i+1}</div>
+      <div class="snm">${n}</div>
+      <div class="scn">${v.n}<span style="font-size:.62rem;font-weight:400;color:var(--tm)"> 次</span></div>
       <div class="sdt">${v.kwh.toFixed(0)} kWh · NT$${Math.round(v.cost).toLocaleString()}</div>
     </div>`
   ).join('');
 }
 
-function renderChartM(mo) {
-  dc('cM'); const t = tclr();
+function dc(id) { if (CH[id]) { CH[id].destroy(); delete CH[id]; } }
+
+function renderChartMonthly(mo) {
+  dc('m'); const t = tc();
   document.getElementById('mleg').innerHTML =
-    `<span><span class="ld" style="background:${t.aA}"></span>充電度數 kWh</span>` +
-    `<span><span class="ld" style="background:${t.bA}"></span>總花費 NT$÷10</span>`;
-  CH['cM'] = new Chart(document.getElementById('cM'), {
-    type:'bar',
-    data:{ labels: mo.map(m => m.key), datasets:[
-      { label:'kWh', data: mo.map(m => +m.kwh.toFixed(1)), backgroundColor: t.aA, borderRadius:3, borderSkipped:false },
-      { label:'NT$/10', data: mo.map(m => +(m.cost/10).toFixed(0)), backgroundColor: t.bA, borderRadius:3, borderSkipped:false }
+    `<span><span class="ld" style="background:${t.aA}"></span>充電度數 kWh</span>
+     <span><span class="ld" style="background:${t.bA}"></span>總花費 NT$÷10</span>`;
+  CH['m'] = new Chart(document.getElementById('cM'), {
+    type: 'bar',
+    data: { labels: mo.map(m=>m.key), datasets: [
+      { label:'kWh',   data:mo.map(m=>+m.kwh.toFixed(1)),             backgroundColor:t.aA, borderRadius:3, borderSkipped:false },
+      { label:'NT$/10',data:mo.map(m=>+(m.cost/10).toFixed(0)), backgroundColor:t.bA, borderRadius:3, borderSkipped:false }
     ]},
-    options:{ responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{display:false}, tooltip:{callbacks:{label: ctx => ctx.datasetIndex===0 ? `充電 ${ctx.raw} kWh` : `花費 NT$${(ctx.raw*10).toFixed(0)}`}}},
-      scales:{ x:{ticks:{color:t.tick,font:{size:9},maxRotation:45,autoSkip:mo.length>12},grid:{color:t.grid}},
-               y:{ticks:{color:t.tick,font:{size:9}},grid:{color:t.grid}}}}
+    options: { responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:ctx=>ctx.datasetIndex===0?`充電 ${ctx.raw} kWh`:`花費 NT$${(ctx.raw*10).toFixed(0)}` }}},
+      scales:{ x:{ ticks:{color:t.tick,font:{size:10},maxRotation:45,autoSkip:mo.length>12}, grid:{color:t.grid} },
+               y:{ ticks:{color:t.tick,font:{size:10}}, grid:{color:t.grid} }}}
   });
 }
 
-function renderChartE(data) {
-  dc('cE'); const t = tclr();
-  const valid = data.filter(r => r.kmSince > 0 && r.actualKwh > 3);
-  const pts = valid.map(r => +(r.kmSince / r.actualKwh).toFixed(2));
-  const lbl = valid.map(r => r.date);
+function renderChartEff(d) {
+  dc('e'); const t = tc();
+  const valid = d.filter(r => r.kmSince>0 && r.actualKwh>3);
+  const pts = valid.map(r => +(r.kmSince/r.actualKwh).toFixed(2));
   const ma  = pts.map((p,i,a) => { const sl=a.slice(Math.max(0,i-4),i+1); return +(sl.reduce((s,v)=>s+v,0)/sl.length).toFixed(2); });
-  CH['cE'] = new Chart(document.getElementById('cE'), {
-    type:'line',
-    data:{ labels:lbl, datasets:[
-      { label:'每次電耗', data:pts, borderColor:'rgba(56,189,248,.27)', backgroundColor:'transparent', pointRadius:1.5, pointBackgroundColor:'rgba(56,189,248,.5)', tension:.3, borderWidth:1 },
+  CH['e'] = new Chart(document.getElementById('cE'), {
+    type: 'line',
+    data: { labels: valid.map(r=>r.date), datasets: [
+      { label:'每次電耗', data:pts, borderColor:'rgba(56,189,248,.28)', backgroundColor:'transparent', pointRadius:1.5, pointBackgroundColor:'rgba(56,189,248,.5)', tension:.3, borderWidth:1 },
       { label:'5次均線',  data:ma,  borderColor:t.a, backgroundColor:'transparent', pointRadius:0, tension:.4, borderWidth:2 }
     ]},
-    options:{ responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{display:false}, tooltip:{callbacks:{label: ctx => `${ctx.dataset.label}: ${ctx.raw} km/kWh`}}},
-      scales:{ x:{ticks:{color:t.tick,font:{size:8},autoSkip:true,maxTicksLimit:8},grid:{color:t.grid}},
-               y:{ticks:{color:t.tick,font:{size:9}},grid:{color:t.grid},min:3,max:10}}}
+    options: { responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:ctx=>`${ctx.dataset.label}: ${ctx.raw} km/kWh` }}},
+      scales:{ x:{ ticks:{color:t.tick,font:{size:9},autoSkip:true,maxTicksLimit:8}, grid:{color:t.grid} },
+               y:{ ticks:{color:t.tick,font:{size:10}}, grid:{color:t.grid}, min:3, max:10 }}}
   });
 }
 
-function renderChartB(data) {
-  dc('cB'); const t = tclr();
+function renderChartBrand(d) {
+  dc('b'); const t = tc();
   const bm = {};
-  data.forEach(r => { if (r.brand) bm[r.brand] = (bm[r.brand]||0) + 1; });
-  const s = Object.entries(bm).sort((a,b) => b[1]-a[1]);
+  d.forEach(r => { if (r.brand) bm[r.brand]=(bm[r.brand]||0)+1; });
+  const s  = Object.entries(bm).sort((a,b)=>b[1]-a[1]);
   const pl = ['#38BDF8','#7DD3FC','#818CF8','#34D399','#FB923C','#FACC15','#F472B6','#A78BFA'];
-  document.getElementById('bwrap').style.height = Math.max(195, s.length*36+48) + 'px';
-  CH['cB'] = new Chart(document.getElementById('cB'), {
-    type:'bar',
-    data:{ labels:s.map(e=>e[0]), datasets:[{ label:'次數', data:s.map(e=>e[1]), backgroundColor:s.map((_,i)=>pl[i%pl.length]), borderRadius:3, borderSkipped:false }]},
-    options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:ctx=>`${ctx.raw} 次`}}},
-      scales:{ x:{ticks:{color:t.tick,font:{size:9},stepSize:1},grid:{color:t.grid}},
-               y:{ticks:{color:t.tick,font:{size:10}},grid:{color:t.grid}}}}
+  document.getElementById('bwrap').style.height = Math.max(200, s.length*38+50)+'px';
+  CH['b'] = new Chart(document.getElementById('cB'), {
+    type: 'bar',
+    data: { labels: s.map(e=>e[0]), datasets: [{ label:'次數', data:s.map(e=>e[1]), backgroundColor:s.map((_,i)=>pl[i%pl.length]), borderRadius:4, borderSkipped:false }]},
+    options: { indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:ctx=>`${ctx.raw} 次` }}},
+      scales:{ x:{ ticks:{color:t.tick,font:{size:10},stepSize:1}, grid:{color:t.grid} },
+               y:{ ticks:{color:t.tick,font:{size:11}}, grid:{color:t.grid} }}}
   });
 }
 
-// ═══════════════════════════════════════════════════════════════
-// RENDER: 每日里程 TAB
-// ═══════════════════════════════════════════════════════════════
 function renderDailyTab() {
-  const t = tclr();
-  const fd = period === 'all' ? DATA_D : DATA_D.filter(r => {
-    const yr = n(gf(r,'年','year'));
-    return yr === parseInt(period);
-  });
+  const t  = tc();
+  const fd = period==='all' ? DD : DD.filter(r=>r.year===parseInt(period));
   if (!fd.length) return;
-
-  // 欄位名稱映射
-  const getOdo  = r => n(gf(r,'總里程\n(Km)','總里程(Km)'));
-  const getTKwh = r => n(gf(r,'總用電\n(kWh)','總用電(kWh)'));
-  const getWh   = r => n(gf(r,'能耗\n(Wh/Km)','能耗(Wh/Km)'));
-  const getEff  = r => n(gf(r,'(Km/kWh)','km/kWh','Km/kWh'));
-  const getDKm  = r => n(gf(r,'里程間\n隔(Km)','里程間隔(Km)'));
-  const getDKwh = r => n(gf(r,'用電度數\n間隔(kWh)','用電度數間隔(kWh)'));
-  const getWk   = r => n(gf(r,'周','week'));
-  const getDate = r => fdate(gf(r,'日期','date'));
-  const getNote = r => String(gf(r,'備註','note')||'');
-
-  dc('cD1');
-  CH['cD1'] = new Chart(document.getElementById('cD1'), {
-    type:'line',
-    data:{ labels:fd.map(getDate), datasets:[{ label:'累積里程', data:fd.map(getOdo), borderColor:t.a, backgroundColor:'rgba(56,189,248,.07)', fill:true, pointRadius:0, tension:.3, borderWidth:2 }]},
-    options:{ responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:ctx=>`${ctx.raw?.toLocaleString()} km`}}},
-      scales:{ x:{ticks:{color:t.tick,font:{size:8},autoSkip:true,maxTicksLimit:10},grid:{color:t.grid}},
-               y:{ticks:{color:t.tick,font:{size:9}},grid:{color:t.grid}}}}
+  dc('cDaily');
+  CH['cDaily'] = new Chart(document.getElementById('cDaily'), {
+    type:'line', data:{ labels:fd.map(r=>r.date), datasets:[{ label:'累積里程', data:fd.map(r=>r.odoKm), borderColor:t.a, backgroundColor:'rgba(56,189,248,.08)', fill:true, pointRadius:0, tension:.3, borderWidth:2 }]},
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:ctx=>`${ctx.raw.toLocaleString()} km` }}},
+      scales:{ x:{ ticks:{color:t.tick,font:{size:9},autoSkip:true,maxTicksLimit:10}, grid:{color:t.grid} }, y:{ ticks:{color:t.tick,font:{size:10}}, grid:{color:t.grid} }}}
   });
-
-  dc('cD2');
-  CH['cD2'] = new Chart(document.getElementById('cD2'), {
-    type:'bar',
-    data:{ labels:fd.map(getDate), datasets:[{ label:'今日km', data:fd.map(getDKm), backgroundColor:t.gA, borderRadius:2, borderSkipped:false }]},
-    options:{ responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:ctx=>`${ctx.raw} km`}}},
-      scales:{ x:{ticks:{color:t.tick,font:{size:8},autoSkip:true,maxTicksLimit:10},grid:{color:t.grid}},
-               y:{ticks:{color:t.tick,font:{size:9}},grid:{color:t.grid}}}}
+  dc('cDailyKm');
+  CH['cDailyKm'] = new Chart(document.getElementById('cDailyKm'), {
+    type:'bar', data:{ labels:fd.map(r=>r.date), datasets:[{ label:'日行km', data:fd.map(r=>r.intervalKm||0), backgroundColor:t.gA, borderRadius:2, borderSkipped:false }]},
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:ctx=>`${ctx.raw} km` }}},
+      scales:{ x:{ ticks:{color:t.tick,font:{size:9},autoSkip:true,maxTicksLimit:10}, grid:{color:t.grid} }, y:{ ticks:{color:t.tick,font:{size:10}}, grid:{color:t.grid} }}}
   });
-
-  dc('cD3');
-  CH['cD3'] = new Chart(document.getElementById('cD3'), {
-    type:'line',
-    data:{ labels:fd.map(getDate), datasets:[{ label:'km/kWh', data:fd.map(r=>getEff(r)||null), borderColor:t.b, backgroundColor:'transparent', pointRadius:0, tension:.3, borderWidth:2, spanGaps:true }]},
-    options:{ responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:ctx=>`${ctx.raw} km/kWh`}}},
-      scales:{ x:{ticks:{color:t.tick,font:{size:8},autoSkip:true,maxTicksLimit:10},grid:{color:t.grid}},
-               y:{ticks:{color:t.tick,font:{size:9}},grid:{color:t.grid},min:5,max:8}}}
+  dc('cDailyEff');
+  CH['cDailyEff'] = new Chart(document.getElementById('cDailyEff'), {
+    type:'line', data:{ labels:fd.map(r=>r.date), datasets:[{ label:'km/kWh', data:fd.map(r=>r.kmPerKwh||null), borderColor:t.b, backgroundColor:'transparent', pointRadius:0, tension:.3, borderWidth:2, spanGaps:true }]},
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:ctx=>`${ctx.raw} km/kWh` }}},
+      scales:{ x:{ ticks:{color:t.tick,font:{size:9},autoSkip:true,maxTicksLimit:10}, grid:{color:t.grid} }, y:{ ticks:{color:t.tick,font:{size:10}}, grid:{color:t.grid}, min:5, max:8 }}}
   });
-
-  const recent = [...fd].reverse().slice(0, 60);
-  document.getElementById('tbody-d').innerHTML = recent.map(r =>
-    `<tr><td>${getDate(r)}</td><td>${getWk(r)||'—'}</td>
-     <td>${getOdo(r).toLocaleString()}</td><td>${getTKwh(r).toLocaleString()}</td>
-     <td>${getWh(r)||'—'}</td><td>${getEff(r)||'—'}</td>
-     <td>${getDKm(r)||0}</td><td>${getDKwh(r)||0}</td>
-     <td style="color:var(--tm);font-size:.58rem">${getNote(r)}</td></tr>`
+  document.getElementById('tbody-daily').innerHTML = [...fd].reverse().slice(0,60).map(r =>
+    `<tr><td>${r.date}</td><td>${r.week||'—'}</td><td>${(r.odoKm||0).toLocaleString()}</td><td>${(r.totalKwh||0).toLocaleString()}</td><td>${r.whPerKm||'—'}</td><td>${r.kmPerKwh||'—'}</td><td>${r.intervalKm||0}</td><td>${r.intervalKwh||0}</td><td style="color:var(--tm);font-size:.6rem">${r.note||''}</td></tr>`
   ).join('');
 }
 
-// ═══════════════════════════════════════════════════════════════
-// RENDER: 月度摘要 TAB
-// ═══════════════════════════════════════════════════════════════
 function renderMonthlyTab() {
-  const t = tclr();
-  // 月度摘要第一欄是 period（格式 YYYYMM）
-  const firstKey = DATA_M.length ? Object.keys(DATA_M[0])[0] : '';
-  const getPeriod  = r => String(r[firstKey] || '').trim();
-  const getKm      = r => n(gf(r,'里程\n(Km)','里程(Km)'));
-  const getActKwh  = r => n(gf(r,'實際用\n電度數\n(度)','實際用電度數(度)'));
-  const getWh      = r => n(gf(r,'平均\n能耗\n(Wh/km)','平均能耗(Wh/km)'));
-  const getEff     = r => n(gf(r,'平均\n電耗\n(Km/度)','平均電耗(Km/度)'));
-  const getChgKwh  = r => n(gf(r,'實際充電\n度數(度)\n(J+K)','實際充電度數(度)'));
-  const getCost    = r => n(gf(r,'實際花費\n金額(元)\n(O+P+Q)','實際花費金額(元)'));
-  const getCostKm  = r => n(gf(r,'平均每公里\n費率(元/Km)\n(H/C)','平均每公里費率(元/Km)'));
-  const getSuKwh   = r => n(gf(r,'實際超\n充度數\n(度)','實際超充度數(度)'));
-  const getSlKwh   = r => n(gf(r,'實際慢\n充度數\n(度)','實際慢充度數(度)'));
-
-  let fd = DATA_M;
-  if (period !== 'all') {
-    const yr = period.slice(2); // e.g. "25" for 2025
-    fd = DATA_M.filter(r => getPeriod(r).startsWith(yr));
-  }
+  const t  = tc();
+  const fd = period==='all'
+    ? DM.filter(r=>/^\d{6}$/.test(r.period) && r.km>0)
+    : DM.filter(r=>r.period.startsWith(period.slice(2)) && /^\d{6}$/.test(r.period) && r.km>0);
   if (!fd.length) return;
-
-  dc('cM1');
-  CH['cM1'] = new Chart(document.getElementById('cM1'), {
-    type:'bar',
-    data:{ labels:fd.map(getPeriod), datasets:[{ label:'里程km', data:fd.map(getKm), backgroundColor:t.aA, borderRadius:3, borderSkipped:false }]},
-    options:{ responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:ctx=>`${ctx.raw?.toLocaleString()} km`}}},
-      scales:{ x:{ticks:{color:t.tick,font:{size:8},maxRotation:45},grid:{color:t.grid}},
-               y:{ticks:{color:t.tick,font:{size:9}},grid:{color:t.grid}}}}
+  dc('cMoKm');
+  CH['cMoKm'] = new Chart(document.getElementById('cMoKm'), {
+    type:'bar', data:{ labels:fd.map(r=>r.period), datasets:[{ label:'km', data:fd.map(r=>r.km), backgroundColor:t.aA, borderRadius:3, borderSkipped:false }]},
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:ctx=>`${ctx.raw.toLocaleString()} km` }}},
+      scales:{ x:{ ticks:{color:t.tick,font:{size:9},maxRotation:45}, grid:{color:t.grid} }, y:{ ticks:{color:t.tick,font:{size:10}}, grid:{color:t.grid} }}}
   });
-
-  dc('cM2');
-  CH['cM2'] = new Chart(document.getElementById('cM2'), {
-    type:'line',
-    data:{ labels:fd.map(getPeriod), datasets:[{ label:'km/kWh', data:fd.map(r=>getEff(r)||null), borderColor:t.b, backgroundColor:'rgba(129,140,248,.09)', fill:true, pointRadius:3, tension:.3, borderWidth:2, spanGaps:true }]},
-    options:{ responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:ctx=>`${ctx.raw} km/kWh`}}},
-      scales:{ x:{ticks:{color:t.tick,font:{size:8},maxRotation:45},grid:{color:t.grid}},
-               y:{ticks:{color:t.tick,font:{size:9}},grid:{color:t.grid},min:5,max:9}}}
+  dc('cMoEff');
+  CH['cMoEff'] = new Chart(document.getElementById('cMoEff'), {
+    type:'line', data:{ labels:fd.map(r=>r.period), datasets:[{ label:'km/kWh', data:fd.map(r=>r.kmPerKwh||null), borderColor:t.b, backgroundColor:'rgba(129,140,248,.1)', fill:true, pointRadius:3, tension:.3, borderWidth:2, spanGaps:true }]},
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:ctx=>`${ctx.raw} km/kWh` }}},
+      scales:{ x:{ ticks:{color:t.tick,font:{size:9},maxRotation:45}, grid:{color:t.grid} }, y:{ ticks:{color:t.tick,font:{size:10}}, grid:{color:t.grid}, min:5, max:8 }}}
   });
-
-  document.getElementById('tbody-m').innerHTML = fd.map(r =>
-    `<tr><td>${getPeriod(r)}</td>
-     <td>${getKm(r).toLocaleString()}</td>
-     <td>${getActKwh(r).toFixed(1)}</td>
-     <td>${getWh(r)||'—'}</td>
-     <td>${getEff(r)||'—'}</td>
-     <td>${getChgKwh(r).toFixed(1)}</td>
-     <td>NT$${getCost(r).toLocaleString()}</td>
-     <td>${getCostKm(r) > 0 ? 'NT$' + getCostKm(r).toFixed(2) : '—'}</td>
-     <td>${getSuKwh(r).toFixed(1)}</td>
-     <td>${getSlKwh(r).toFixed(1)}</td></tr>`
+  document.getElementById('tbody-monthly').innerHTML = DM.filter(r=>/^\d{6}$/.test(r.period)).map(r =>
+    `<tr><td>${r.period}</td><td>${(r.km||0).toLocaleString()}</td><td>${(r.actualKwh||0).toFixed(1)}</td>
+     <td>${r.whPerKm||'—'}</td><td>${r.kmPerKwh||'—'}</td><td>${(r.chargedKwh||0).toFixed(1)}</td>
+     <td>NT$${(r.totalCost||0).toLocaleString()}</td><td>${r.costPerKm>0?'NT$'+sn(r.costPerKm).toFixed(2):'—'}</td>
+     <td>${(r.superKwh||0).toFixed(1)}</td><td>${(r.slowKwh||0).toFixed(1)}</td></tr>`
   ).join('');
 }
 
-// ═══════════════════════════════════════════════════════════════
-// MAIN RENDER
-// ═══════════════════════════════════════════════════════════════
 function render() {
-  const data = getFiltered();
-  const mo   = computeMonthlyFromC(data);
-  const k    = computeKPIs(data);
-  const lmap = { all:'全部期間', '2024':'2024年', '2025':'2025年', '2026':'2026年' };
-
-  document.getElementById('pb').textContent = `${lmap[period]} · ${data.length} 筆`;
-  document.getElementById('fcnt').textContent = DATA_C.length;
-
-  const activeTab = document.querySelector('.tab.on')?.dataset?.t || 'charging';
+  const d  = filt();
+  const mo = computeMonthly(d);
+  const k  = computeKPIs(d);
+  const lm = { all:'全部期間', '2024':'2024年', '2025':'2025年', '2026':'2026年' };
+  document.getElementById('pb').textContent = `${lm[period]} · ${d.length} 筆`;
+  const activeTab = document.querySelector('.tab.active')?.dataset?.tab || 'charging';
   if (activeTab === 'charging') {
-    renderKPIs(k); renderHero(k); renderCTable(mo);
-    renderStations(data); renderChartM(mo); renderChartE(data); renderChartB(data);
+    renderKPIs(k); renderHero(k); renderTable(mo);
+    renderStations(d); renderChartMonthly(mo); renderChartEff(d); renderChartBrand(d);
   } else if (activeTab === 'daily') {
     renderDailyTab();
   } else if (activeTab === 'monthly') {
@@ -896,40 +957,31 @@ function render() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// 事件綁定
+// FILTER PILLS
 // ═══════════════════════════════════════════════════════════════
-function switchTab(name, el) {
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
-  document.querySelectorAll('.tp').forEach(p => p.classList.remove('on'));
-  el.classList.add('on');
-  document.getElementById('t-' + name).classList.add('on');
-  ['ring-s','ring-l'].forEach(id => document.getElementById(id).style.strokeDashoffset='283');
-  ['bar-s','bar-l'].forEach(id => document.getElementById(id).style.width='0');
-  render();
-}
-
 document.querySelectorAll('.pill').forEach(btn => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('.pill').forEach(b => b.classList.remove('on'));
-    btn.classList.add('on');
-    period = btn.dataset.p;
-    ['ring-s','ring-l'].forEach(id => document.getElementById(id).style.strokeDashoffset='283');
-    ['bar-s','bar-l'].forEach(id => document.getElementById(id).style.width='0');
+    document.querySelectorAll('.pill').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    period = btn.dataset.period;
+    ['rsuper','rslow'].forEach(id => document.getElementById(id).style.strokeDashoffset = '283');
+    ['bsuper','bslow'].forEach(id => document.getElementById(id).style.width = '0');
     render();
   });
 });
 
-function toggleTheme() {
-  dark = !dark;
-  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
-  document.getElementById('tbtn').textContent = dark ? '🌙' : '☀️';
+// ═══════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════
+(async () => {
+  try { await syncAll(); } catch (e) { console.error('Init error:', e); }
   render();
-}
-
-// ═══════════════════════════════════════════════════════════════
-// 啟動
-// ═══════════════════════════════════════════════════════════════
-loadData();
+  document.getElementById('app').classList.add('v');
+  setTimeout(() => {
+    document.getElementById('splash').classList.add('out');
+    setTimeout(() => document.getElementById('splash').remove(), 600);
+  }, 400);
+})();
 </script>
 </body>
 </html>
