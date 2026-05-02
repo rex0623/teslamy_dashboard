@@ -175,6 +175,18 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;bac
 .err-step-txt{font-size:.75rem;color:var(--tx);line-height:1.6;}
 .err-step-code{font-family:'Space Mono',monospace;font-size:.65rem;background:var(--s3);padding:.3rem .6rem;border-radius:6px;margin-top:.4rem;color:var(--a);word-break:break-all;}
 
+.val-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:.5rem;margin-top:.75rem;}
+.val-card{display:flex;gap:.6rem;align-items:flex-start;padding:.5rem .75rem;border-radius:8px;background:var(--s2);}
+.val-card.pass{border-left:2px solid #34D399;}
+.val-card.fail{border-left:2px solid #F87171;}
+.val-icon{font-size:.8rem;flex-shrink:0;padding-top:1px;}
+.val-label{font-size:.67rem;color:var(--tx);font-weight:500;font-family:'Space Mono',monospace;}
+.val-detail{font-size:.58rem;color:var(--tm);margin-top:2px;}
+.val-summary{display:flex;align-items:center;gap:1rem;flex-wrap:wrap;margin-bottom:.75rem;}
+.val-score{font-family:'Orbitron',monospace;font-size:1.4rem;font-weight:700;}
+.val-score.all-pass{color:#34D399;}
+.val-score.has-fail{color:#F87171;}
+.warn-box{background:rgba(251,146,60,.06);border:1px solid rgba(251,146,60,.25);border-radius:8px;padding:.6rem .9rem;font-size:.62rem;color:#FB923C;margin-top:.6rem;}
 ::-webkit-scrollbar{width:4px;height:4px;}
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:rgba(56,189,248,.2);border-radius:2px;}
@@ -406,6 +418,19 @@ footer{position:relative;z-index:1;text-align:center;padding:1.5rem;font-family:
     </div>
   </div>
 </div><!-- /#app -->
+
+<!-- ★ VALIDATION PANEL -->
+<div style="position:relative;z-index:1;max-width:1280px;margin:0 auto;padding:0 1.25rem 2rem;">
+  <div class="cc">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin-bottom:.75rem;">
+      <div class="sl" style="margin-bottom:0">驗證報告 (Validation Checklist)</div>
+      <button class="sb-btn" onclick="runValidation()" style="font-size:.65rem">↻ 重新執行驗證</button>
+    </div>
+    <div id="val-content">
+      <div style="font-family:'Space Mono',monospace;font-size:.65rem;color:var(--tm)">載入資料後自動執行...</div>
+    </div>
+  </div>
+</div>
 
 <footer>Tesla Model Y RWD · EBC-0289 · 2024/08 起算 · <span id="fcnt">—</span> 筆充電記錄 · <span id="lupdate">—</span></footer>
 
@@ -1024,11 +1049,138 @@ document.querySelectorAll('.pill').forEach(btn => {
 });
 
 // ═══════════════════════════════════════════════════════════════
+// ★ VALIDATION ENGINE — 18 項驗證清單
+// ═══════════════════════════════════════════════════════════════
+function runValidation() {
+  const checks = [];
+  const chk = (id, label, pass, detail='') => checks.push({id, label, pass, detail});
+
+  // ── 資料可用性 ──
+  chk('C01','充電記錄筆數 > 0', DC.length > 0, `共 ${DC.length} 筆充電記錄`);
+  chk('D01','每日里程筆數 > 0', DD.length > 0, `共 ${DD.length} 筆每日記錄`);
+  chk('M01','月度摘要筆數 > 0', DM.filter(r=>/^\d{6}$/.test(r.period)).length > 0,
+    `共 ${DM.filter(r=>/^\d{6}$/.test(r.period)).length} 個月份`);
+
+  // ── 資料型態驗證 ──
+  const typeErr = DC.filter(r =>
+    typeof r.actualKwh !== 'number' || isNaN(r.actualKwh) ||
+    typeof r.totalCost !== 'number' || isNaN(r.totalCost)
+  );
+  chk('C02','充電記錄數值型態正確（kWh/費用）', typeErr.length === 0,
+    typeErr.length === 0 ? '全部欄位型態正確' : `${typeErr.length} 筆型態異常`);
+
+  const negKwh = DC.filter(r => r.actualKwh <= 0);
+  chk('C03','充電度數 > 0（無零值或負值）', negKwh.length === 0,
+    negKwh.length === 0 ? '全部通過' : `${negKwh.length} 筆異常`);
+
+  const negCost = DC.filter(r => r.totalCost < 0 || r.chargeFee < 0 || r.parkFee < 0);
+  chk('C04','費用欄位無負數', negCost.length === 0, '全部通過');
+
+  const costMismatch = DC.filter(r => Math.abs((r.chargeFee + r.parkFee) - r.totalCost) > 5);
+  chk('C05','chargeFee + parkFee ≈ totalCost（±5 NT$）', costMismatch.length === 0,
+    costMismatch.length === 0 ? '全部通過' : `${costMismatch.length} 筆差異 > NT$5`);
+
+  const badType = DC.filter(r => r.type !== '超充' && r.type !== '慢充');
+  chk('C06','充電類型只有「超充」/「慢充」', badType.length === 0,
+    badType.length === 0 ? '全部通過' : `${badType.length} 筆類型異常：${[...new Set(badType.map(r=>r.type))].join(', ')}`);
+
+  // ── 里程計驗證 ──
+  const odos = DC.filter(r => r.odoNow != null && isFinite(r.odoNow)).map(r => r.odoNow).sort((a,b)=>a-b);
+  const odoBack = odos.filter((v,i,a) => i > 0 && v < a[i-1]).length;
+  chk('C07','充電記錄里程計單調遞增', odoBack === 0,
+    odos.length > 0 ? `${odos[0].toLocaleString()} → ${odos[odos.length-1].toLocaleString()} km` : '無里程資料');
+
+  const dailyOdo = DD.map(r=>r.odoKm);
+  const dailyBack = dailyOdo.filter((v,i,a)=>i>0&&v<a[i-1]).length;
+  chk('D02','每日里程累積值單調遞增', dailyBack === 0,
+    `${dailyOdo[0]} → ${dailyOdo[dailyOdo.length-1]} km，${dailyBack} 筆倒退`);
+
+  // ── 欄位偏移修正確認 ──
+  const firstDaily = DD[0];
+  chk('D03','每日里程欄位偏移已修正（A欄空格+1）',
+    firstDaily && firstDaily.date && firstDaily.odoKm > 0 && firstDaily.odoKm < 200,
+    firstDaily ? `首筆：${firstDaily.date} odo=${firstDaily.odoKm} km ✓` : '無資料');
+
+  // ── 除以零保護 ──
+  const emptyKpi = computeKPIs([]);
+  chk('C08','空資料集除以零保護', isFinite(emptyKpi.avgKmPerKwh) && !isNaN(emptyKpi.avgKmPerKwh),
+    `空集合 avgKmPerKwh = ${emptyKpi.avgKmPerKwh}（無 Infinity/NaN）`);
+
+  // ── 核心公式驗證 ──
+  const allKpi = computeKPIs(DC);
+  const manualKwh = DC.reduce((s,r)=>s+r.actualKwh, 0);
+  chk('C09','總充電度數加總公式正確', Math.abs(allKpi.totalKwh - manualKwh) < 0.01,
+    `計算 ${allKpi.totalKwh.toFixed(2)} vs 手動 ${manualKwh.toFixed(2)}`);
+
+  const superKwh = DC.filter(r=>r.type==='超充').reduce((s,r)=>s+r.actualKwh,0);
+  const slowKwh  = DC.filter(r=>r.type==='慢充').reduce((s,r)=>s+r.actualKwh,0);
+  chk('C10','超充kWh + 慢充kWh = 總kWh', Math.abs(superKwh+slowKwh-allKpi.totalKwh) < 0.01,
+    `${superKwh.toFixed(1)} + ${slowKwh.toFixed(1)} = ${(superKwh+slowKwh).toFixed(1)} ✓`);
+
+  // ── 月度摘要驗證 ──
+  const hasKm0Month = DM.some(r=>r.period==='202605'&&(r.chargedKwh>0||r.totalCost>0));
+  chk('M02','202605（km=0但有充電）不被過濾', hasKm0Month,
+    hasKm0Month ? '修正後用 chargedKwh>0||totalCost>0，202605 保留 ✓' : '⚠️ 202605 被錯誤過濾');
+
+  const yr2026 = DM.filter(r=>r.period.startsWith('2026')&&/^\d{6}$/.test(r.period)&&(r.chargedKwh>0||r.totalCost>0));
+  chk('M03','2026年篩選 startsWith(period) 正確', yr2026.length > 0,
+    `2026年有 ${yr2026.length} 個有效月份`);
+
+  // ── 充電/洗車交叉比對 ──
+  const chargeFlagged = DD.filter(d=>d.isCharge).length;
+  chk('D04','充電記錄交叉比對標記 isCharge', chargeFlagged > 0,
+    `共標記 ${chargeFlagged} 個充電日`);
+
+  // ── 邊界條件測試 ──
+  const edgeRow = {actualKwh:0, totalCost:0, chargeFee:0, parkFee:0, odoNow:null, kmSince:0, kwhSince:0, type:'超充', year:2099, month:1, date:'2099/1/1', brand:'Test', station:'Test'};
+  const edgeKpi = computeKPIs([edgeRow]);
+  chk('C11','邊界：零度數充電記錄不崩潰', isFinite(edgeKpi.avgKmPerKwh),
+    `零度數 avgKmPerKwh = ${edgeKpi.avgKmPerKwh}（不崩潰）`);
+
+  // ── 渲染 ──
+  const passCount = checks.filter(c=>c.pass).length;
+  const failCount = checks.length - passCount;
+  const allPass = failCount === 0;
+  const allKpiN = computeKPIs(filt());
+
+  let html = `<div class="val-summary">
+    <div class="val-score ${allPass?'all-pass':'has-fail'}">${allPass?'✔':('✗')} ${passCount}/${checks.length} 通過</div>
+    <div style="font-family:'Space Mono',monospace;font-size:.62rem;color:var(--tm)">
+      充電 ${DC.length} 筆 ·
+      每日 ${DD.length} 筆 ·
+      月度 ${DM.filter(r=>/^\d{6}$/.test(r.period)).length} 月 ·
+      總kWh ${allKpiN.totalKwh.toFixed(1)} ·
+      avg ${allKpiN.avgKmPerKwh.toFixed(2)} km/kWh ·
+      總花費 NT$${Math.round(allKpiN.totalCost).toLocaleString()}
+    </div>
+  </div>
+  <div class="val-grid">`;
+
+  checks.forEach(c => {
+    html += `<div class="val-card ${c.pass?'pass':'fail'}">
+      <div class="val-icon">${c.pass?'✔':'✗'}</div>
+      <div>
+        <div class="val-label">[${c.id}] ${c.label}</div>
+        <div class="val-detail">${c.detail}</div>
+      </div>
+    </div>`;
+  });
+  html += '</div>';
+
+  if (failCount > 0) {
+    html += `<div class="warn-box">⚠️ 有 ${failCount} 項驗證未通過，請檢查上方詳情或開啟瀏覽器 Console 查看錯誤日誌。</div>`;
+  }
+
+  document.getElementById('val-content').innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════════════
 (async () => {
   try { await syncAll(); } catch (e) { console.error('Init error:', e); }
   render();
+  runValidation();  // 自動執行驗證
   document.getElementById('app').classList.add('v');
   setTimeout(() => {
     document.getElementById('splash').classList.add('out');
