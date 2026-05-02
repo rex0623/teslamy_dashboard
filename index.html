@@ -916,8 +916,8 @@ function renderDailyTab() {
 function renderMonthlyTab() {
   const t  = tc();
   const fd = period==='all'
-    ? DM.filter(r=>/^\d{6}$/.test(r.period) && r.km>0)
-    : DM.filter(r=>r.period.startsWith(period.slice(2)) && /^\d{6}$/.test(r.period) && r.km>0);
+    ? DM.filter(r=>/^\d{6}$/.test(r.period) && (r.chargedKwh>0||r.totalCost>0))
+    : DM.filter(r=>r.period.startsWith(period) && /^\d{6}$/.test(r.period) && (r.chargedKwh>0||r.totalCost>0));
   if (!fd.length) return;
   dc('cMoKm');
   CH['cMoKm'] = new Chart(document.getElementById('cMoKm'), {
@@ -931,7 +931,7 @@ function renderMonthlyTab() {
     options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:ctx=>`${ctx.raw} km/kWh` }}},
       scales:{ x:{ ticks:{color:t.tick,font:{size:9},maxRotation:45}, grid:{color:t.grid} }, y:{ ticks:{color:t.tick,font:{size:10}}, grid:{color:t.grid}, min:5, max:8 }}}
   });
-  document.getElementById('tbody-monthly').innerHTML = DM.filter(r=>/^\d{6}$/.test(r.period)).map(r =>
+  document.getElementById('tbody-monthly').innerHTML = DM.filter(r=>/^\d{6}$/.test(r.period)&&(r.chargedKwh>0||r.totalCost>0)).map(r =>
     `<tr><td>${r.period}</td><td>${(r.km||0).toLocaleString()}</td><td>${(r.actualKwh||0).toFixed(1)}</td>
      <td>${r.whPerKm||'—'}</td><td>${r.kmPerKwh||'—'}</td><td>${(r.chargedKwh||0).toFixed(1)}</td>
      <td>NT$${(r.totalCost||0).toLocaleString()}</td><td>${r.costPerKm>0?'NT$'+sn(r.costPerKm).toFixed(2):'—'}</td>
