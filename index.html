@@ -372,6 +372,10 @@ footer{position:relative;z-index:1;text-align:center;padding:1.5rem;font-family:
   <!-- TAB: 每日里程 -->
   <div class="tab-panel" id="tab-daily">
     <div class="sb">
+      <div class="sl">行駛 · 充電 · 洗車 統計</div>
+      <div class="kg" id="daily-kpi" style="margin-bottom:1rem"></div>
+    </div>
+    <div class="sb">
       <div class="sl">每日里程追蹤</div>
       <div class="cc" style="margin-bottom:.7rem;"><div class="ct">累積總里程趨勢（km）</div><div style="position:relative;height:280px"><canvas id="cDaily">每日里程</canvas></div></div>
       <div class="cg2">
@@ -381,7 +385,7 @@ footer{position:relative;z-index:1;text-align:center;padding:1.5rem;font-family:
     </div>
     <div class="sb"><div class="sl">每日明細（最新 60 筆）</div>
       <div class="tw"><div class="sx">
-        <table class="dt"><thead><tr><th>日期</th><th>週</th><th>累積里程</th><th>累積用電 kWh</th><th>Wh/km</th><th>km/kWh</th><th>今日 km</th><th>今日度數</th><th>備註</th></tr></thead><tbody id="tbody-daily"></tbody></table>
+        <table class="dt"><thead><tr><th>日期 ⚡=充電 🚿=洗車</th><th>週</th><th>累積里程 km</th><th>累積用電 kWh</th><th>Wh/km</th><th>km/kWh</th><th>日行 km</th><th>日耗 kWh</th><th>備註</th></tr></thead><tbody id="tbody-daily"></tbody></table>
       </div></div>
     </div>
   </div>
@@ -564,18 +568,25 @@ function parseCharging({ rows }) {
 // 欄位：日期[0] 年[1] 月[2] 周[3] 總里程(Km)[4] 總用電(kWh)[5] 能耗(Wh/Km)[6] (Km/kWh)[7] 用電間隔[8] 里程間隔[9] 備註[10]
 // ═══════════════════════════════════════════════════════════════
 function parseDaily({ rows }) {
+  // 欄位 index（A欄為空，gviz 仍計入）：
+  // [0]=A空 [1]=B日期 [2]=C年 [3]=D月 [4]=E周
+  // [5]=F總里程 [6]=G總用電 [7]=H能耗Wh/Km [8]=I Km/kWh
+  // [9]=J用電間隔 [10]=K里程間隔 [11]=L備註
   return rows
-    .filter(r => r[4] != null && +r[4] > 0)
+    .filter(r => r[5] != null && +r[5] > 0)
     .map(r => ({
-      date:       String(r[0] || '').split('T')[0].split(' ')[0],
-      year:       +r[1], month: +r[2], week: +r[3] || 0,
-      odoKm:      +(r[4] || 0),
-      totalKwh:   +(r[5] || 0),
-      whPerKm:    r[6] != null ? +r[6] : null,
-      kmPerKwh:   r[7] != null ? +r[7] : null,
-      intervalKwh:+(r[8] || 0),
-      intervalKm: +(r[9] || 0),
-      note:        String(r[10] || ''),
+      date:       String(r[1] || '').split('T')[0].split(' ')[0],
+      year:       +r[2], month: +r[3], week: +r[4] || 0,
+      odoKm:      +(r[5] || 0),
+      totalKwh:   +(r[6] || 0),
+      whPerKm:    r[7] != null ? +r[7] : null,
+      kmPerKwh:   r[8] != null ? +r[8] : null,
+      intervalKwh:+(r[9] || 0),
+      intervalKm: +(r[10] || 0),
+      note:       String(r[11] || ''),
+      // isCharge 由 syncAll 用充電記錄交叉比對後填入
+      isCharge: false,
+      isWash:   false,
     }));
 }
 
@@ -646,6 +657,13 @@ async function syncAll() {
 
   const now = new Date().toLocaleString('zh-TW');
   document.getElementById('lupdate').textContent = `更新 ${now}`;
+
+  // ── 充電記錄交叉比對，標記 DD 中每天是否有充電 / 洗車 ──
+  const chargeDateSet = new Set(DC.map(r => r.date.split(' ')[0].split('T')[0]));
+  DD.forEach(d => {
+    d.isCharge = chargeDateSet.has(d.date);
+    d.isWash   = d.note.includes('洗車');
+  });
 
   if (DC.length > 0) {
     // 成功
@@ -890,6 +908,25 @@ function renderDailyTab() {
   const t  = tc();
   const fd = period==='all' ? DD : DD.filter(r=>r.year===parseInt(period));
   if (!fd.length) return;
+  // 充電/洗車頻率 KPI
+  const totalDays = fd.length;
+  const chargeDays = fd.filter(d => d.isCharge).length;
+  const washDays   = fd.filter(d => d.isWash).length;
+  const avgKmDay   = totalDays > 0 ? (fd[fd.length-1].odoKm - fd[0].odoKm) / totalDays : 0;
+  const avgKwhDay  = fd.filter(d=>d.intervalKwh>0).reduce((s,d)=>s+d.intervalKwh,0) / Math.max(totalDays,1);
+  const freqEl = document.getElementById('daily-kpi');
+  if (freqEl) {
+    const dkCards = [
+      {l:'記錄天數',  v:totalDays,                 u:'天',     c:'#38BDF8', i:'📅'},
+      {l:'充電天數',  v:chargeDays,                u:'天',     c:'#38BDF8', i:'⚡'},
+      {l:'平均充電間隔', v:totalDays>0?(totalDays/Math.max(chargeDays,1)).toFixed(1):'-', u:'天/次', c:'#7DD3FC', i:'🔋'},
+      {l:'洗車次數',  v:washDays,                  u:'次',     c:'#818CF8', i:'🚿'},
+      {l:'平均日行',  v:avgKmDay.toFixed(1),       u:'km/天',  c:'#34D399', i:'🚗'},
+      {l:'平均日耗',  v:avgKwhDay.toFixed(1),      u:'kWh/天', c:'#FB923C', i:'💡'},
+    ];
+    freqEl.innerHTML = dkCards.map(c=>`<div class="kc" style="--kca:${c.c}"><div class="ki">${c.i}</div><div class="kl">${c.l}</div><div class="kv">${c.v}</div><div class="ku">${c.u}</div></div>`).join('');
+  }
+
   dc('cDaily');
   CH['cDaily'] = new Chart(document.getElementById('cDaily'), {
     type:'line', data:{ labels:fd.map(r=>r.date), datasets:[{ label:'累積里程', data:fd.map(r=>r.odoKm), borderColor:t.a, backgroundColor:'rgba(56,189,248,.08)', fill:true, pointRadius:0, tension:.3, borderWidth:2 }]},
@@ -908,9 +945,25 @@ function renderDailyTab() {
     options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:ctx=>`${ctx.raw} km/kWh` }}},
       scales:{ x:{ ticks:{color:t.tick,font:{size:9},autoSkip:true,maxTicksLimit:10}, grid:{color:t.grid} }, y:{ ticks:{color:t.tick,font:{size:10}}, grid:{color:t.grid}, min:5, max:8 }}}
   });
-  document.getElementById('tbody-daily').innerHTML = [...fd].reverse().slice(0,60).map(r =>
-    `<tr><td>${r.date}</td><td>${r.week||'—'}</td><td>${(r.odoKm||0).toLocaleString()}</td><td>${(r.totalKwh||0).toLocaleString()}</td><td>${r.whPerKm||'—'}</td><td>${r.kmPerKwh||'—'}</td><td>${r.intervalKm||0}</td><td>${r.intervalKwh||0}</td><td style="color:var(--tm);font-size:.6rem">${r.note||''}</td></tr>`
-  ).join('');
+  // 每日明細表格：含充電/洗車標記
+  document.getElementById('tbody-daily').innerHTML = [...fd].reverse().slice(0,60).map(r => {
+    const chgBadge = r.isCharge ? '<span style="background:rgba(56,189,248,.2);color:var(--a);font-family:'Space Mono',monospace;font-size:.52rem;padding:1px 5px;border-radius:4px;margin-right:4px">⚡充</span>' : '';
+    const washBadge = r.isWash ? '<span style="background:rgba(129,140,248,.2);color:#818CF8;font-family:'Space Mono',monospace;font-size:.52rem;padding:1px 5px;border-radius:4px;margin-right:4px">🚿洗</span>' : '';
+    const rowStyle = r.isCharge ? 'background:rgba(56,189,248,.04)' : r.isWash ? 'background:rgba(129,140,248,.04)' : '';
+    const kmVal = r.intervalKm > 0 ? r.intervalKm : (r.intervalKm === 0 ? '0' : '—');
+    const kwhVal = r.intervalKwh > 0 ? r.intervalKwh.toFixed(0) : (r.intervalKwh < 0 ? `<span style="color:#F87171">${r.intervalKwh}</span>` : '0');
+    return `<tr style="${rowStyle}">
+      <td>${chgBadge}${washBadge}${r.date}</td>
+      <td>${r.week||'—'}</td>
+      <td>${(r.odoKm||0).toLocaleString()}</td>
+      <td>${(r.totalKwh||0).toLocaleString()}</td>
+      <td>${r.whPerKm||'—'}</td>
+      <td>${r.kmPerKwh||'—'}</td>
+      <td>${kmVal}</td>
+      <td>${kwhVal}</td>
+      <td style="color:var(--tm);font-size:.6rem">${r.note||''}</td>
+    </tr>`;
+  }).join('');
 }
 
 function renderMonthlyTab() {
