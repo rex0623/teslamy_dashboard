@@ -1099,22 +1099,33 @@ function render(){
 
 // ── INIT ──
 (()=>{
-  // 立即使用本機資料
-  DC = LOCAL_C.map(localCtoObj);
-  DM = LOCAL_M;
-  // DD 不再使用（改用 LOCAL_D 直接在 rDailyTab 讀取）
-  setSS('','本機資料');
-  spSet(60,'載入本機資料...');
+  // ★ Splash 強制消除（最高優先，任何情況都會執行）
+  function dismissSplash() {
+    const s = document.getElementById('splash');
+    if (s) { s.classList.add('out'); setTimeout(() => { if(s.parentNode) s.remove(); }, 500); }
+    document.getElementById('app').classList.add('v');
+  }
 
-  // DOM 就緒後渲染
-  // 立即渲染，400ms 後消除 splash（純本機資料，不需等待）
-  render();
-  document.getElementById('app').classList.add('v');
-  spSet(100,'完成 ✓');
-  setTimeout(()=>{
-    const s=document.getElementById('splash');
-    if(s){s.classList.add('out');setTimeout(()=>s.remove(),500);}
-  },400);
+  // 載入本機資料（同步，不依賴網路）
+  try {
+    DC = LOCAL_C.map(localCtoObj);
+    DM = LOCAL_M;
+  } catch(e) {
+    console.error('[init] 資料載入錯誤', e);
+    DC = []; DM = [];
+  }
+
+  setSS('', '本機資料');
+  spSet(100, '載入完成 ✓');
+
+  // render + splash 移除：分開 try/catch，互不影響
+  try { render(); } catch(e) { console.error('[init] render 錯誤', e); }
+
+  // 不管 render 有沒有錯，400ms 後一定消除 splash
+  setTimeout(dismissSplash, 400);
+
+  // 安全網：若 400ms 沒消除（極端情況），900ms 強制再試
+  setTimeout(dismissSplash, 900);
 })();
 </script>
 </body>
