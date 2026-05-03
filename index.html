@@ -1107,15 +1107,14 @@ function render(){
   spSet(60,'載入本機資料...');
 
   // DOM 就緒後渲染
+  // 立即渲染，400ms 後消除 splash（純本機資料，不需等待）
+  render();
+  document.getElementById('app').classList.add('v');
+  spSet(100,'完成 ✓');
   setTimeout(()=>{
-    spSet(100,'完成 ✓');
-    render();
-    document.getElementById('app').classList.add('v');
-    setTimeout(()=>{
-      const s=document.getElementById('splash');
-      if(s){s.classList.add('out');setTimeout(()=>s.remove(),550);}
-    },300);
-  },600);
+    const s=document.getElementById('splash');
+    if(s){s.classList.add('out');setTimeout(()=>s.remove(),500);}
+  },400);
 })();
 </script>
 </body>
